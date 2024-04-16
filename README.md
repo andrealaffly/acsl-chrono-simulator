@@ -31,7 +31,7 @@ The pre-requisites for the chorno installation are as follows:
 
 ### Git for windows
 
-Visit this [link](https://cmake.org/download/) and download the latest CMake version. choose the 'Windows ARM64 Installer' under the 'Binary distributions:' window and go through the installation
+Visit this [link](https://cmake.org/download/) and download the latest CMake version. choose the 'Windows x64 Installer:' under the 'Binary distributions:' window and go through the installation
 
 > **Note:** 
 
@@ -41,6 +41,10 @@ Visit this [link](https://visualstudio.microsoft.com/downloads/) and download th
 > **Note:** Select the following development in the drop down menu to install your necessary compile tools.
 
 ### Python 3.12
+
+Visit this [link](https://www.python.org/downloads/release/python-3122/) and download the 'Windows installer (64-bit)' which is recommened. Go through the process and install it at the default location.
+
+> **Note:** If you already have a Python version installed on your system which is greater than or equal to version 3.6. You can potentially skip this step.
 
 ### CMake 
 
