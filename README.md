@@ -1,5 +1,5 @@
 # Comprehensive Guide for Chrono High Fidelity Simulator (v 3.29.20)
-Chorno Simulator used by ACSL. Compile instructions are written by Giri Mugundan Kumar. 
+Chorno Simulator used by ACSL. Compile instructions are written by Giri Mugundan Kumar. If you have any question email 'girimugundan@vt.edu' or 'a.lafflitto@vt.edu' for further information.
 
 > **Note:** Start with the [Introduction](#introduction) and follow the [pre-requisites](#pre-requisites) to setup the environment for compiling chorno code.
 
@@ -30,3 +30,11 @@ This guide is made for installing Chrono high fidelity simulator with the follow
 The pre-requisites for the chorno installation are as follows:
 
 ### Git for windows
+
+### Microsoft Vistual Studio 2022
+
+### Python 3.12
+
+### CMake 
+
+### Solidworks 2022 
