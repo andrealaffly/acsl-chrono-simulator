@@ -1,7 +1,7 @@
-## Comprehensive Guide for Chrono High Fidelity Simulator (v 3.29.20
+# Comprehensive Guide for Chrono High Fidelity Simulator (v 3.29.20)
 Chorno Simulator used by ACSL. Compile instructions are written by Giri Mugundan Kumar.
 
-# Introduction
+## Introduction
 This guide is made for installing Chrono high fidelity simulator with the following packages. 
 
 1. Core Module
