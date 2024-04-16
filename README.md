@@ -3,7 +3,7 @@ Chorno Simulator used by ACSL. Compile instructions are written by Giri Mugundan
 
 > **Note:** Start with the [Introduction](#introduction) and follow the [pre-requisites](#pre-requisites) to setup the environment for compiling chorno code.
 
-## Introduction {#introduction}
+## Introduction{#introduction}
 This guide is made for installing Chrono high fidelity simulator with the following packages. 
 
 1. Core Module
@@ -26,7 +26,7 @@ This guide is made for installing Chrono high fidelity simulator with the follow
 
 > For further information, the Laptop used to validate the installation is : ROG Zephyrus M16 GU603HM_GU603HM 1.0
 
-## Pre-Requisites
+## Pre-Requisites{#pre-requisites}
 The pre-requisites for the chorno installation are as follows:
 
 ### Git for windows
