@@ -16,7 +16,6 @@ This guide is made for installing Chrono high fidelity simulator with the follow
 8. Multicore Module
 9. Postprocess Module
 10. Python Module
-11. Parsers Module
 12. Chrono Solidworks Plugin
 
 > **Note:** The installation instruction are provided to install 'all' the mentioned modules. This is done so that every install instance of CHRONO at ACSL is 'identitcal' and all the simulation programs run on different hardware. The modules utilize features that are selected based on the following basic hardware specifications:
