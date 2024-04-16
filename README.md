@@ -31,7 +31,7 @@ The pre-requisites for the chorno installation are as follows:
 
 ### Git for windows
 
-Visit this [link](https://cmake.org/download/) and download the latest CMake version. choose the 'Windows x64 Installer:' under the 'Binary distributions:' window and go through the installation
+
 
 > **Note:** 
 
@@ -47,5 +47,9 @@ Visit this [link](https://www.python.org/downloads/release/python-3122/) and dow
 > **Note:** If you already have a Python version installed on your system which is greater than or equal to version 3.6. You can potentially skip this step.
 
 ### CMake 
+
+Visit this [link](https://cmake.org/download/) and download the latest CMake version. choose the 'Windows x64 Installer:' under the 'Binary distributions:' window and go through the installation
+
+> **Note:**
 
 ### Solidworks 2022 
