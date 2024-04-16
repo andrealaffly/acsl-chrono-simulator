@@ -1,0 +1,5 @@
+c_compiler:
+  - clang     # [osx]
+
+cxx_compiler:
+  - clangxx   # [osx]
