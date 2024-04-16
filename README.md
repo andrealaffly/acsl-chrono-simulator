@@ -31,9 +31,13 @@ The pre-requisites for the chorno installation are as follows:
 
 ### Git for windows
 
-Visit this [link](https://visualstudio.microsoft.com/downloads/) and download the 'Community' version of the Visual Studio 2022. Once the installer is done. Select the following development in the drop down menu to install your necessary compile tools.
+Visit this [link](https://cmake.org/download/) and download the latest CMake version. choose the 'Windows ARM64 Installer' under the 'Binary distributions:' window and go through the installation
+
+> **Note:** 
 
 ### Microsoft Vistual Studio 2022
+
+Visit this [link](https://visualstudio.microsoft.com/downloads/) and download the 'Community' version of the Visual Studio 2022. Once the installer is done. Select the following development in the drop down menu to install your necessary compile tools.
 
 ### Python 3.12
 
