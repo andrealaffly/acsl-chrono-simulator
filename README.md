@@ -30,8 +30,9 @@ This guide is made for installing Chrono high fidelity simulator with the follow
 The pre-requisites for the chorno installation are as follows:
 
 ### Git for windows
+Visit this [link](https://git-scm.com/download/win) and download the 'Standalone Installer' for the '64-bit' version of Windows and run the application.
 
-> **Note:** Visit this [link](https://git-scm.com/download/win) and download the 'Standalone Installer' for the '64-bit' version of Windows and run the application. Please select the following options as shown below:
+> **Note:** Please select the following options as shown in the video below:
 
 https://github.com/andrealaffly/acsl-chrono-simulator/assets/101145815/22627698-7fbc-4e18-8760-ad293fcd12bf
 
