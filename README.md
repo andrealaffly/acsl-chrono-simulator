@@ -31,9 +31,7 @@ The pre-requisites for the chorno installation are as follows:
 
 ### Git for windows
 
-
-
-> **Note:** 
+> **Note:** Visit this [link](https://git-scm.com/download/win) and download the 'Standalone Installer' for the '64-bit' version of Windows and run the application. Please select the following options as shown below:
 
 ### Microsoft Vistual Studio 2022
 
