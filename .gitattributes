@@ -1,8 +1,4 @@
-# Use a wildcard approach to track all .SLDPRT for Git LFS
 assets/**/*.SLDPRT filter=lfs diff=lfs merge=lfs -text
-# Use a wildcard approach to track all .SLDASM for Git LFS
 assets/**/*.SLDASM filter=lfs diff=lfs merge=lfs -text
-# Use a wildcard approach to track all .obj for Git LFS
 assets/**/*.obj filter=lfs diff=lfs merge=lfs -text
-# Use a wildcard approach to track all .mtl for Git LFS
 assets/**/*.mtl filter=lfs diff=lfs merge=lfs -text
