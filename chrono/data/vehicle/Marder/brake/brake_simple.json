@@ -1,7 +1,0 @@
-{
-  "Name":                       "Marder Simple Brake",
-  "Type":                       "TrackBrake",
-  "Template":                   "TrackBrakeSimple",
-
-  "Maximum Torque":             30000
-}

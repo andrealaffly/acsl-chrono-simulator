@@ -1,8 +1,0 @@
-{
-  "Name": "G500 Brake Rear",
-  "Type": "Brake",
-  "Template": "BrakeShafts",
-
-  "Shaft Inertia": 0.4,
-  "Maximum Torque": 1500
-}

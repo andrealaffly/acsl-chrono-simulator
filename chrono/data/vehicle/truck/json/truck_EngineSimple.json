@@ -1,9 +1,0 @@
-{
-  "Name": "Truck 6x4 Offroad Truck Simple Engine",
-  "Type": "Engine",
-  "Template": "EngineSimple",
-
-  "Maximum Engine Torque": 38270,
-  "Maximum Engine Power": 256000,
-  "Maximum Engine Speed": 300
-}
