@@ -1,0 +1,14 @@
+# Blaze Libraries
+[submodule "libraries/third-party/blaze"]
+	path = libraries/third-party/blaze
+	url = https://bitbucket.org/blaze-lib/blaze.git
+
+# Boosst Libraries
+[submodule "libraries/third-party/boost"]
+	path = libraries/third-party/boost
+	url = https://github.com/boostorg/boost.git
+
+# Chrono Submodules
+[submodule "libraries/chrono"]
+	path = libraries/chrono
+	url = https://github.com/projectchrono/chrono.git
