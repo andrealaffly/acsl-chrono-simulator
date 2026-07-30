@@ -167,7 +167,7 @@ poly:
   # Set to true to use the segmented minimum-jerk polynomial trajectory module
   enabled: true
   # Type in the trajectory filename that needs to be imported
-  filename: rollercoaster_trajectory1p5
+  filename: bean_trajectory0p2
   # Type in the filetype of the trajectory filename that needs to be imported
   filetype: json
 

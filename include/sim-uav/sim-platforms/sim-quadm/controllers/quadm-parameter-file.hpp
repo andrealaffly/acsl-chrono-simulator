@@ -49,15 +49,15 @@ namespace _quadm_
 // HARDCODED - HARDCODED - HARDCODED - HARDCODED - HARDCODED - HARDCODED - HARDCODED
 // ##################################################################################
 
-inline constexpr double MASS = 1.05748;  // mass [Kg]
+inline constexpr double MASS = 1.28941154;  // mass [Kg]
 
 // Matrix of inertia of the quadcopter frame 
 // [kg*m^2] inertia matrix of the vehicle system expressed in
 // Pixhawk coordinate system (FRD - x-Front, y-Right, z-Down), computed at the vehicle center of mass
 const Eigen::Matrix3d inertia_matrix_q = (Eigen::Matrix3d() << 
-                                                0.00373978,	0.00000409, 0.00001103,
-                                                0.00000409,	0.00422375,	0.00000086,
-                                                0.00001103,	0.00000086,	0.00635708).finished();
+                                                0.00677586,	0.00000121, 0.00000914,
+                                                0.00000121,	0.00639639,	0.00000215,
+                                                0.00000914,	0.00000215,	0.01061757).finished();
 
 // Constants -------------------------------------------------------------------------------------------------------
 inline constexpr double G = 9.81;
@@ -69,8 +69,8 @@ inline constexpr double RAD2DEG = (180/PI);
 inline constexpr double SQRT2_OVER_2 = 0.7071067;
 
 // Vehicle and Environment Defines
-inline constexpr double LX = 0.0954;                                         // dist to motor along x^J              [m]
-inline constexpr double LY = 0.01107;                                        // dist to motor along y^J              [m]
+inline constexpr double LX = 0.09667602;     // dist to motor along x^J              [m]
+inline constexpr double LY = 0.11074982;     // dist to motor along y^J              [m]
 
 // Weight vector of the quadm
 static inline const Eigen::Vector3d e3_basis = Eigen::Vector3d(0.0, 0.0, 1.0);
@@ -78,9 +78,9 @@ static inline const Eigen::Vector3d e3_basis = Eigen::Vector3d(0.0, 0.0, 1.0);
 // Thrust Normalizeing polynomials are hardcoded!
 // Take care coding this from matlab. check the documentation for the polyval function.
 // The polynomails are reversed!.
-inline constexpr double CT_MOTOR =  0.19972;                                  // motor torque coeff              [-]
-inline constexpr double MAX_THRUST = 10.625;                                  // max allowed thrust per motor    [N]
-inline constexpr double MIN_THRUST = 0.6275;                                  // min allowed thrust per motor    [N]
+inline constexpr double CT_MOTOR =  0.1017;                                   // motor torque coeff              [-]
+inline constexpr double MAX_THRUST = 18;                                      // max allowed thrust per motor    [N]
+inline constexpr double MIN_THRUST = 0.3;                                     // min allowed thrust per motor    [N]
 
 // Roll Rate Filter ------------------------------------------------------------------------------------------------
 // A matrix of the roll_ref filter
@@ -182,14 +182,14 @@ const double D_filter_yaw_dot_ref = 0.0;
 // Polynomial coefficients vector to evaluate the Commanded Thrust [-] based on the Thrust in Newton
 // TMotor F35A - Velox V2808 Kv1300
 const Eigen::VectorXd thrust_polynomial_coeff_quadm = (Eigen::VectorXd(8) << 
-                                                        1.1397548468561201E-5,
-                                                        -0.00038436172518955446,
-                                                        0.0051947365478567029,
-                                                        -0.036003519831726248,
-                                                        0.13652913911293302,
-                                                        -0.2857385586886379,
-                                                        0.40625173135017634,
-                                                        -0.0586576952028257
+                                                        0.000000030316084940690649384320061064321,
+                                                        -0.000001814468657920738862350290739045,
+                                                        0.000042434512948142268497307011410058,
+                                                        -0.00050487431926448940282259325584846,
+                                                        0.0035249290604740459061094970394379,
+                                                        -0.017552333963129614080589391278409,
+                                                        0.1149654034760465154407782506496,
+                                                        0.011001286689392602777259888569006
                                                     ).finished();
 
 // Mixer Matrix ----------------------------------------------------------------------------------------------------

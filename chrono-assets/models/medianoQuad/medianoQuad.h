@@ -11,6 +11,7 @@
 #include "chrono/physics/ChSystem.h"
 #include "chrono/physics/ChLinkTSDA.h"
 #include "chrono/physics/ChLinkRSDA.h"
+
 /// Function to import Solidworks assembly directly into Chrono ChSystem.
 void ImportSolidworksSystemCpp(chrono::ChSystem& system, std::unordered_map<std::string, std::shared_ptr<chrono::ChFunction>>* motfun_map = nullptr);
 
