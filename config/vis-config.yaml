@@ -39,9 +39,9 @@ main:
   # Set to false for headless/speed mode
   enable_vis: true
   # Set to true for Vulkan visualizaton (Default) 
-  enable_vulkan: true
+  enable_vulkan: false
   # Set to true for Irrlicht visualizaton 
-  enable_irrlicht: false
+  enable_irrlicht: true
   # Target framerate
   target_frame_rate: 30.0
 
