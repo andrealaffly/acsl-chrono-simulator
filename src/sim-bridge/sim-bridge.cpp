@@ -223,29 +223,45 @@ void simbridge::ConfigureSimulatorFromConfig()
     // ------------------------------------------------------------------------
     // If the chassis drag is enabled, check that the necessary parameters are set in the UAV object. If not, throw an error.
     if (this->enable_chassis_drag) {
-        if (std::isnan(this->m_uav->GetUAVAerodynamics().chassis_drag_coefficient)) {
+        if (std::isnan(this->m_uav->GetUAVChassisAerodynamics().chassis_drag_coefficient)) {
             _message_::SIMULATOR_ERROR("[SIMBRG]: CHASSIS DRAG ENABLED BUT CHASSIS DRAG COEFFICIENT IS NOT SET FOR THIS UAV");
         }
-        if (std::isnan(this->m_uav->GetUAVAerodynamics().air_density)) {
+        if (std::isnan(this->m_uav->GetUAVChassisAerodynamics().air_density)) {
             _message_::SIMULATOR_ERROR("[SIMBRG]: CHASSIS DRAG ENABLED BUT AIR DENSITY IS NOT SET FOR THIS UAV");
         }
-        if (std::isnan(this->m_uav->GetUAVAerodynamics().chassis_body_surface_aera)) {
+        if (std::isnan(this->m_uav->GetUAVChassisAerodynamics().chassis_body_surface_aera)) {
             _message_::SIMULATOR_ERROR("[SIMBRG]: CHASSIS DRAG ENABLED BUT CHASSIS BODY SURFACE AREA IS NOT SET FOR THIS UAV");
         }
     }
+
     // If the wing aerodynamics is enabled, check that the necessary parameters are set in the UAV object. If not, throw an error.
     if (this->enable_wing_aerodynamics) {
-        if (std::isnan(this->m_uav->GetUAVAerodynamics().air_density)) {
-            _message_::SIMULATOR_ERROR("[SIMBRG]: WING AERODYNAMICS ENABLED BUT AIR DENSITY IS NOT SET FOR THIS UAV");
-        }
-        if (std::isnan(this->m_uav->GetUAVAerodynamics().aerofoil_span)) {
-            _message_::SIMULATOR_ERROR("[SIMBRG]: WING AERODYNAMICS ENABLED BUT WING SPAN IS NOT SET FOR THIS UAV");
-        }
-        if (std::isnan(this->m_uav->GetUAVAerodynamics().aerofoil_chord)) {
-            _message_::SIMULATOR_ERROR("[SIMBRG]: WING AERODYNAMICS ENABLED BUT WING CHORD LENGTH IS NOT SET FOR THIS UAV");
-        }
-        if (this->m_uav->GetUAVAerodynamics().aerodynamic_center_frames.empty()) {
-            _message_::SIMULATOR_ERROR("[SIMBRG]: WING AERODYNAMICS ENABLED BUT AERODYNAMIC CENTER FRAMES ARE NOT SET FOR THIS UAV");
+
+        const auto& surfaces = this->m_uav->GetUAVAerodynamicSurfaces();
+
+        for (const auto& s: surfaces) 
+        {
+            if (std::isnan(s.air_density)) {
+                _message_::SIMULATOR_ERROR( std::string("[SIMBRG]: WING AERODYNAMICS ENABLED BUT ")
+                                                        + "AIR DENSITY IS NOT SET FOR THIS SURFACE: "
+                                                        + s.name);
+            }
+            if (std::isnan(s.aerofoil_span)) {
+                _message_::SIMULATOR_ERROR(std::string("[SIMBRG]: WING AERODYNAMICS ENABLED BUT ")
+                                           + "WING SPAN IS NOT SET FOR THIS SURFACE: " 
+                                           + s.name);
+            }
+            if (std::isnan(s.aerofoil_chord)) {
+                _message_::SIMULATOR_ERROR(std::string("[SIMBRG]: WING AERODYNAMICS ENABLED BUT ")
+                                           + "WING CHORD LENGTH IS NOT SET FOR THIS SURFACE: " 
+                                           + s.name);
+            }
+            if (s.aerodynamic_center_frames.empty()) {
+                _message_::SIMULATOR_ERROR(std::string("[SIMBRG]: WING AERODYNAMICS ENABLED BUT ")
+                                           + "AERODYNAMIC CENTER FRAMES ARE NOT SET FOR THIS SURFACE: " 
+                                           + s.name);
+            }
+            
         }
     }
 
@@ -353,15 +369,17 @@ void simbridge::UpdateVisualizationSystemIrrlicht()
         // STEP 5.2 – If enabled, render the chassis drag frame of the UAV.
         // --------------------------------------------------------------------
         if (this->m_sys.GetVisConfig().render_chassis_drag_frame) {
-            this->m_sys.GetVisionSystemIrr().RenderFrame(m_uav->GetUAVAerodynamics().chassis_drag_frame->GetAbsFrame(), 0.1);
+            this->m_sys.GetVisionSystemIrr().RenderFrame(m_uav->GetUAVChassisAerodynamics().chassis_drag_frame->GetAbsFrame(), 0.1);
         }
 
         // --------------------------------------------------------------------
         // STEP 5.3 – If enabled, render the wing aerodynamic frames of the UAV.
         // --------------------------------------------------------------------
         if (this->m_sys.GetVisConfig().render_wing_aero_frames) {
-            for (const auto& aero_frame : m_uav->GetUAVAerodynamics().aerodynamic_center_frames) {
-                this->m_sys.GetVisionSystemIrr().RenderFrame(aero_frame->GetAbsFrame(), 0.1);
+            for (const auto& aerofoil : this->m_uav->GetUAVAerodynamicSurfaces()) {
+                for (const auto& aeroframe : aerofoil.aerodynamic_center_frames) {
+                    this->m_sys.GetVisionSystemIrr().RenderFrame(aeroframe->GetAbsFrame(), 0.1);
+                }
             }
         }
 
@@ -454,15 +472,17 @@ void simbridge::UpdateVisualizationSystemVulkan()
         // STEP 3.2 – If enabled, render the chassis drag frame of the UAV.
         // --------------------------------------------------------------------
         if (this->m_sys.GetVisConfig().render_chassis_drag_frame) {
-            this->m_sys.GetVisionSystemVsg().RenderFrame(m_uav->GetUAVAerodynamics().chassis_drag_frame->GetAbsFrame(), 0.1);
+            this->m_sys.GetVisionSystemVsg().RenderFrame(m_uav->GetUAVChassisAerodynamics().chassis_drag_frame->GetAbsFrame(), 0.1);
         }
 
         // --------------------------------------------------------------------
         // STEP 3.3 – If enabled, render the wing aerodynamic frames of the UAV.
         // --------------------------------------------------------------------
         if (this->m_sys.GetVisConfig().render_wing_aero_frames) {
-            for (const auto& aero_frame : m_uav->GetUAVAerodynamics().aerodynamic_center_frames) {
-                this->m_sys.GetVisionSystemVsg().RenderFrame(aero_frame->GetAbsFrame(), 0.1);
+            for (const auto& aerofoil : this->m_uav->GetUAVAerodynamicSurfaces()) {
+                for (const auto& aeroframe : aerofoil.aerodynamic_center_frames) {
+                    this->m_sys.GetVisionSystemVsg().RenderFrame(aeroframe->GetAbsFrame(), 0.1);
+                }
             }
         }
 
@@ -741,7 +761,7 @@ void simbridge::UpdatePhysicsSystem()
     }
 
     if (this->enable_wing_aerodynamics) {
-        this->m_uav->SetUAVTailSitterWingLiftDrag();
+        this->m_uav->SetUAVAeroSurfaceLiftDrag();
     }
 
     // ------------------------------------------------------------------------
@@ -819,11 +839,11 @@ void simbridge::UpdatePhysicsSystem()
             << m_state.vel.x() << ", "
             << m_state.vel.y() << ", "
             << m_state.vel.z() << "\n" << color_reset
-            << color_label << "UAV rotation IN NED FRAME: " << color_value
+            << color_label << "UAV ROTATION IN NED FRAME: " << color_value
             << _shared_::_conversions_::rad2deg(m_state.eul.x()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul.y()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul.z()) << "\n" << color_reset
-            << color_label << "UAV rotation IN BIPLANE FRAME: " << color_value
+            << color_label << "UAV ROTATIONa IN BIPLANE FRAME: " << color_value
             << _shared_::_conversions_::rad2deg(m_state.eul_bp.x()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul_bp.y()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul_bp.z()) << "\n" << color_reset
@@ -848,46 +868,49 @@ void simbridge::UpdatePhysicsSystem()
             << m_state.tauJ.y() << ", "
             << m_state.tauJ.z() << "\n" <<color_reset
             << color_label << "UAV CHASSIS DRAG FORCES IN NED FRAME [J]: " << color_value
-            << m_uav->GetUAVAerodynamics().chassis_drag_force.x() << ", "
-            << m_uav->GetUAVAerodynamics().chassis_drag_force.y() << ", "
-            << m_uav->GetUAVAerodynamics().chassis_drag_force.z() << "\n" <<color_reset;
+            << m_uav->GetUAVChassisAerodynamics().chassis_drag_force.x() << ", "
+            << m_uav->GetUAVChassisAerodynamics().chassis_drag_force.y() << ", "
+            << m_uav->GetUAVChassisAerodynamics().chassis_drag_force.z() << "\n" <<color_reset;
+            
             // --------------------------------------------------------------------
-            // Print per-aerodynamic-center debug info (for all centers)
+            // Print per-aerodynamic-center debug info (for all aero surfaces)
             // --------------------------------------------------------------------
-            const auto& aero = m_uav->GetUAVAerodynamics();
+            if (this->enable_wing_aerodynamics && this->enable_wing_aerodynamics_dbg) {
 
-            const std::size_t n = aero.aerodynamic_center_frames.size();
-            if (this->enable_wing_aerodynamics && this->enable_wing_aerodynamics_dbg)
-            {
-                msg << color_label << "AERODYNAMIC CENTERS:\n" << color_reset;
-                
-                for (std::size_t i = 0; i < n; ++i)
-                {
-                    const double alpha_deg = _shared_::_conversions_::rad2deg(aero.alpha[i]);
+                msg << color_label << "AERODYNAMIC FORCES:\n" << color_reset;
 
-                    msg << color_label << "  "
+                for (const auto& aero : this->m_uav->GetUAVAerodynamicSurfaces()) {
+
+                    msg << color_label
+                        << " SURFACE: " << color_value << aero.name
+                        << color_reset << "\n";
+
+                    const std::size_t n = aero.aerodynamic_center_frames.size();
+
+                    for (std::size_t i = 0; i < n; ++i) {
+                        const double alpha_deg = ::_shared_::_conversions_::rad2deg(aero.alpha[i]);
+
+                        msg << color_label << "    "
                         << aero.aerodynamic_center_frames[i]->GetName() << ": "
                         << "alpha [deg]: " << color_value << alpha_deg << color_label
                         << " | CL: "       << color_value << aero.CL[i] << color_label
                         << " | CD: "       << color_value << aero.CD[i] << color_label
-                        << " | L [N]: "    << color_value << aero.wing_aero_lift[i] << color_label
-                        << " | D [N]: "    << color_value << aero.wing_aero_drag[i]
+                        << " | L [N]: "    << color_value << aero.surf_aero_lift[i] << color_label
+                        << " | D [N]: "    << color_value << aero.surf_aero_drag[i]
                         << "\n" << color_reset;
+                    }
                 }
             }
-            else if(this->enable_wing_aerodynamics && !this->enable_wing_aerodynamics_dbg)
-            {
-                msg << color_label << "AERODYNAMIC CENTERS: " 
-                    << color_value << "SWITCHED ON" 
+            else if (this->enable_wing_aerodynamics) {
+                msg << color_label << "AERODYNAMIC SURFACES: "
+                    << color_value << "SWITCHED ON"
                     << color_reset << "\n";
             }
-            else if(!this->enable_wing_aerodynamics)
-            {
-                msg << color_label << "AERODYNAMIC CENTERS: "
+            else {
+                msg << color_label << "AERODYNAMIC SURFACES: "
                     << color_value << "NONE"
                     << color_reset << "\n";
             }
-
         
         // Print the colorized output to the terminal.
         std::cout << msg.str() << std::endl;

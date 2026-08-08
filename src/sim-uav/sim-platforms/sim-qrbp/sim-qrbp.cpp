@@ -559,31 +559,60 @@ void simqrbp::ConfigureQRBPMotors()
 // Optional derived class function that initiates the aerodynamic properties with all the necessary parameters
 void simqrbp::ConfigureQRBPAerodynamics()
 {
-    // Set the chassis drag coefficient - We consider this a flat plane
-    GetUAVAerodynamics().chassis_drag_coefficient = 1.28; 
 
+    // ------------------------------------------------------------------------------- CONFIGURE CHASSIS DRAG
+    // Set the chassis air density used
+    GetUAVChassisAerodynamics().air_density = 1.228;
+    
+    // Set the chassis drag coefficient - We consider this a flat plane
+    GetUAVChassisAerodynamics().chassis_drag_coefficient = 1.28;
+    
     // Set the chassis drag surface area - We consider this to be the area of the flat plane so only
     // measure the top surface area of the chassis - preferably this should be computed in blender
     // with the 3D print toolbox on the acutal exported model .obj file.
-    GetUAVAerodynamics().chassis_body_surface_aera = 1.0319;
+    GetUAVChassisAerodynamics().chassis_body_surface_aera = 1.0319;
+        
+    // ---------------------------------------------------------------------------------- CONFIGURE THE WINGS
+    // Create a vector for the aerodynamic surfaces
+    std::vector<::_acsl_::_uav_::aerodynamicsurfacestruct> wings;
 
-    // Set the air density for the simulation
-    GetUAVAerodynamics().air_density = 1.228;
+    // Create a single object for the aerodynamic surface
+    ::_acsl_::_uav_::aerodynamicsurfacestruct wing;
 
-    // Set the span of a single wing
-    GetUAVAerodynamics().aerofoil_span = 0.50;
+    // Set the common properties for the aerodynamic surface
+    // Set the air density, the span and chord are the same as we use the same wing profile
+    // q_relative is the reltive orientation of the aerodynamic surface with respect to the body NED frame.
+    // Set the relative direction vectors for lift and drag forces with respect to the body NED frame
+    //   - Lift acts along -X (negative body X axis).
+    //   - Drag acts along +Z (positive body Z axis).
+    // Set the number of aero centers, it's the same for both wings as we want it to be symmetrical
+    wing.air_density = 1.228;
+    wing.aerofoil_span = 0.50;
+    wing.aerofoil_chord = 0.12;
+    wing.q_relative = chrono::QuatFromAngleY(chrono::CH_PI_2);
+    wing.lift_force_relative_vector = chrono::ChVector3d(-1, 0, 0);
+    wing.drag_force_relative_vector = chrono::ChVector3d(0, 0, 1);
+    wing.num_of_aero_centers = 10;
 
-    // Set the chord of a single wing
-    GetUAVAerodynamics().aerofoil_chord = 0.12;
-
-    // Lower Wing                                      
-    ConfigureUAVTailSitterWingAeroCenters(1, 10, chrono::ChVector3d(0.0859162968652246,0.2702797625509060,0.0350554117109310 ), 
-                                                 chrono::ChVector3d(0.0859162968652246,-0.2297202374490940,0.0350554117109310 ));
+    // Lower wing
+    wing.name = "lower_wing";
+    wing.p1 = chrono::ChVector3d(0.0859162968652246,0.2702797625509060,0.0350554117109310);
+    wing.p2 = chrono::ChVector3d(0.0859162968652246,-0.2297202374490940,0.0350554117109310);
+    
+    // Add the wing to the vector of wings
+    wings.push_back(wing);
 
     // Upper Wing
-    ConfigureUAVTailSitterWingAeroCenters(2, 10, chrono::ChVector3d(-0.1078837031347774,0.2702797625509060,0.0350554117109310 ), 
-                                                 chrono::ChVector3d(-0.1078837031347774,-0.2297202374490940,0.0350554117109310 ));
+    wing.name = "upper_wing";
+    wing.p1 = chrono::ChVector3d(-0.1078837031347774,0.2702797625509060,0.0350554117109310);
+    wing.p2 = chrono::ChVector3d(-0.1078837031347774,-0.2297202374490940,0.0350554117109310);
 
+    // Add the wing to the vector of wings
+    wings.push_back(wing);
+
+    // Finally configure the UAV aerodynamics with the wings we have set up
+    ConfigureUAVAeroSurfaces(wings);
+    
 }
 
 

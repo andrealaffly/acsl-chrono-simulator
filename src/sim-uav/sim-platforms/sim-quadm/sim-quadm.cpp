@@ -536,16 +536,17 @@ void simquadm::ConfigureQUADMMotors()
 // Optional derived class function that initiates the aerodynamic properties with all the necessary parameters
 void simquadm::ConfigureQUADMAerodynamics()
 {
+    // ------------------------------------------------------------------------------- CONFIGURE CHASSIS DRAG
+    // Set the chassis air density used
+    GetUAVChassisAerodynamics().air_density = 1.228;
+
     // Set the chassis drag coefficient - We consider this a flat plane
-    GetUAVAerodynamics().chassis_drag_coefficient = 1.28; 
+    GetUAVChassisAerodynamics().chassis_drag_coefficient = 1.28; 
 
     // Set the chassis drag surface area - We consider this to be the area of the flat plane so only
     // measure the top surface area of the chassis - preferably this should be computed in blender
     // with the 3D print toolbox on the acutal exported model .obj file.
-    GetUAVAerodynamics().chassis_body_surface_aera = 0.06;
-
-    // Set the air density for the simulation
-    GetUAVAerodynamics().air_density = 1.228;
+    GetUAVChassisAerodynamics().chassis_body_surface_aera = 0.06;
 
 }
 
