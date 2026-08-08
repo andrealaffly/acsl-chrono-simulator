@@ -54,7 +54,7 @@ solver:
   # Solver iteration settings - Maximum solver iterations per timestep
   # NOTE: Depends on CPU architecture, you might have to increase this if
   #       you repeatedly encounter nan values in the states.
-  MaxIterations: 100
+  MaxIterations: 150
   
   # Warm start option — speeds up convergence by using previous solutions
   EnableWarmStart: true

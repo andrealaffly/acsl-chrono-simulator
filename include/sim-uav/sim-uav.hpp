@@ -265,50 +265,90 @@ struct motorstruct {
 };
 
 // ------------------------------------------------------------------------------------------------------------
-// Structure: aerodynamicstruct
+// Structure: chassisaerodynamicstruct
 //
 // Purpose:
-//   Stores all the data associated with the aerodynamic surfaces for the UAV.
+//   Stores all the data associated with the chassis aerodynamic properties.
 //
 // Members:
+//   air_density               - Density of the air you want to set
 //   chassis_drag_frame        - Marker frame for applying drag forces on the chassis. (NED Convention)
-//   aerodynamic_center_frames - List of marker frames for applying aerodynamic forces (NED Convention).
 //   chassis_drag_coefficients - Coefficients for computing the aerodynamic drag force on the chassis.
 //   chassis_drag_force        - Chrono drag force vector computed for the chassis.
 // ------------------------------------------------------------------------------------------------------------
-struct aerodynamicstruct {
-    
-    // Common Aerodynamic Parameters
+struct chassisaerodynamicstruct {
+
+    // Common aerodynamic parameters
     double air_density = std::numeric_limits<double>::quiet_NaN();
 
     // Parameters for the chassis drag force calculation
     double chassis_drag_coefficient = std::numeric_limits<double>::quiet_NaN();
     double chassis_body_surface_aera = std::numeric_limits<double>::quiet_NaN();
 
-    // Variables to store the chassis drag force 
-    std::shared_ptr<chrono::ChMarker> chassis_drag_frame;   // For visualizatoin
+    // Variables to store the chassis drag force
+    std::shared_ptr<chrono::ChMarker> chassis_drag_frame;   // For visualization
     chrono::ChVector3d chassis_drag_force;                  // For computation
     std::shared_ptr<chrono::ChForce> chassis_drag_force_x;  // For application in X direction
     std::shared_ptr<chrono::ChForce> chassis_drag_force_y;  // For application in Y direction
     std::shared_ptr<chrono::ChForce> chassis_drag_force_z;  // For application in Z direction
+};
+
+// ------------------------------------------------------------------------------------------------------------
+// Structure: aerodynamicsurfacestruct
+//
+// Purpose:
+//   Stores all the data associated with the aerodynamic surfaces for the UAV other than the chassis.
+//
+// Members:
+//   air_density                  - Density of the air you want to set
+//   name                         - Name of the aerodynamic surface (e.g., "left_wing", "right_wing").   
+//   aerofoil_span                - Span of the aerofoil (wing) for lift and drag calculations.
+//   aerofoil_chord               - Chord length of the aerofoil (wing) for lift and drag calculations.
+//   num_of_aero_centers          - Number of aerodynamic centers per wing (for distributed aerodynamics).
+//   p1                           - Point 1 for the quarter-chord line of the wing.
+//   p2                           - Point 2 for the quarter-chord line of the wing.
+//   aerodynamic_center_frames    - List of marker frames for applying aerodynamic forces (NED Convention).
+//   alpha                        - Angle of attack for each aerodynamic center (for lift and drag calculations).
+//   CL                           - Lift coefficient for each aerodynamic center.
+//   CD                           - Drag coefficient for each aerodynamic center.
+//   wing_aero_drag               - Computed drag force for each aerodynamic center.
+//   wing_aero_lift               - Computed lift force for each aerodynamic center.
+//   wing_aero_drag_forces        - Chrono force objects for applying drag forces.
+//   wing_aero_lift_forces        - Chrono force objects for applying lift forces.
+//   q_relative                   - Orientation of the wing's aerodynamic center frame relative to the NED frame.
+//   lift_force_relative_vector   - Direction vector for lift force relative in the chassis NED frame.
+//   drag_force_relative_vector   - Direction vector for drag force relative in the chassis NED frame.
+// ------------------------------------------------------------------------------------------------------------
+struct aerodynamicsurfacestruct {  
+
+    // Common aerodynamic parameters
+    double air_density = std::numeric_limits<double>::quiet_NaN();
+
+    // Name of the aerodynamic surface (e.g., "left_wing", "right_wing").
+    std::string name;
 
     // Parameters for the aerofoil lift and drag force calculation
     double aerofoil_span = std::numeric_limits<double>::quiet_NaN();
     double aerofoil_chord = std::numeric_limits<double>::quiet_NaN();
-
+ 
     // Variables to store the wing aerodynamic forces
-    int num_of_aero_centers_per_wing = 0;                                      // Number of aerodynamic centers per wing (for distributed aerodynamics)
+    int num_of_aero_centers = 0;                                                // Number of aerodynamic centers per wing (for distributed aerodynamics)
+    chrono::ChVector3d p1;                                                     // Point 1 for the quarter-chord line
+    chrono::ChVector3d p2;                                                     // Point 2 for the quarter-chord line
+    
     std::vector<std::shared_ptr<chrono::ChMarker>> aerodynamic_center_frames;  // For visualization
     std::vector<double> alpha;                                                 // For computation
     std::vector<double> CL;                                                    // For computation
     std::vector<double> CD;                                                    // For computation
-    std::vector<double> wing_aero_drag;                                        // For computation
-    std::vector<double> wing_aero_lift;                                        // For computation
-    std::vector<std::shared_ptr<chrono::ChForce>> wing_aero_drag_forces;       // For application of drag in -ve x direction (NED)
-    std::vector<std::shared_ptr<chrono::ChForce>> wing_aero_lift_forces;       // For application of lift in -ve z direction (NED)
+    std::vector<double> surf_aero_drag;                                        // For computation
+    std::vector<double> surf_aero_lift;                                        // For computation
+    std::vector<std::shared_ptr<chrono::ChForce>> aero_surf_drag_forces;       // For application of drag in -ve x direction (NED)
+    std::vector<std::shared_ptr<chrono::ChForce>> aero_surf_lift_forces;       // For application of lift in -ve z direction (NED)
+    chrono::ChQuaterniond q_relative;                                          // For setting up the wing's aerodynamic center frame orientation wrt the NED frame
+    chrono::ChVector3d lift_force_relative_vector;                             // For setting up the direction in which the lift force acts wrt to the body NED frame
+    chrono::ChVector3d drag_force_relative_vector;                             // For setting up the direction in which the drag force acts wrt to the body NED frame
 
-};
-
+};  
 
 // ------------------------------------------------------------------------------------------------------------
 // Structure: m_states
@@ -579,8 +619,14 @@ public:
     // Access the chassisstruct for modifying chassis parameters directly.
     virtual chassisstruct& GetUAVChassis() = 0;
 
-    // Access the aerodynamicstruct for modifying aerodynamic parameters directly.
-    virtual aerodynamicstruct& GetUAVAerodynamics() = 0;
+    // Access the chassisaerodynamicstruct for modifying aerodynamic parameters directly.
+    virtual chassisaerodynamicstruct& GetUAVChassisAerodynamics() = 0;
+
+    // Access the aerodynamicsurfacestruct for modifying the aerodynamics parameters directly by name.
+    virtual aerodynamicsurfacestruct& GetUAVAerodynamicSurface(std::string name) = 0;
+
+    // Access the aerodynamic surface struct vector for verification purposes and logging only
+    virtual std::vector<aerodynamicsurfacestruct>& GetUAVAerodynamicSurfaces() = 0;
 
     // Access the propstruct for modifying prop parameters directly.
     virtual propstruct& GetUAVProp(size_t idx) = 0;
@@ -615,8 +661,8 @@ public:
     // Function to compute and apply the aerodynamic chassis drag force
     virtual void SetChassisDrag() = 0;
 
-    // Function to compute and apply the aerodynamic forces for the aerofoil of a tailsitter
-    virtual void SetUAVTailSitterWingLiftDrag() = 0;
+    // Function to compute and apply the aerodynamic forces for an arbitrary aerodynamic surface
+    virtual void SetUAVAeroSurfaceLiftDrag() = 0;
 
 protected:
     // ---------------- Protected API ----------------
@@ -722,9 +768,8 @@ protected:
     // Set the chassis drag coefficient
     virtual void ConfigureUAVChassisDragCoefficient(double coeff) = 0;
 
-    // Set the wing aerodynamic centers based on the frames passed in and the number of centers per wing - For a tilsitter
-    virtual void ConfigureUAVTailSitterWingAeroCenters(int wing_id, int num_centers_per_wing, chrono::ChVector3d p1, chrono::ChVector3d p2) = 0;
-    
+    // Set the wing aerodynamic centers based on the aerodynamic surfaces data passed in
+    virtual void ConfigureUAVAeroSurfaces(std::vector<aerodynamicsurfacestruct>& aero_surfaces) = 0;
 };
 
 
@@ -768,7 +813,10 @@ public:
     chassisstruct& GetUAVChassis() override { return chassis; }
     propstruct& GetUAVProp(size_t idx) override;
     motorstruct& GetUAVMotor(size_t idx) override;
-    aerodynamicstruct& GetUAVAerodynamics() override { return aerodynamics; }
+    chassisaerodynamicstruct& GetUAVChassisAerodynamics() override { return chassisaero; };
+    aerodynamicsurfacestruct& GetUAVAerodynamicSurface(std::string name) override;
+    std::vector<aerodynamicsurfacestruct>& GetUAVAerodynamicSurfaces() override { return aerosurfaces; }
+
 
     std::vector<std::shared_ptr<chrono::ChBodyAuxRef>>& GetUAVBodyList() override { return bodylist; }
     std::vector<std::shared_ptr<chrono::ChLinkBase>>& GetUAVLinkList() override { return linklist; }
@@ -786,7 +834,7 @@ public:
 
     void SetChassisDrag() override;
 
-    void SetUAVTailSitterWingLiftDrag() override;
+    void SetUAVAeroSurfaceLiftDrag() override;
 
 protected:
     // ---------------- Protected API overrides ----------------
@@ -844,24 +892,25 @@ protected:
 
     void LinkUAVBodies(const std::vector<LinkData>& link_data_vec) override;
 
-    void ConfigureUAVChassisDragCoefficient(double coeff) override { aerodynamics.chassis_drag_coefficient = coeff; }
+    void ConfigureUAVChassisDragCoefficient(double coeff) override { chassisaero.chassis_drag_coefficient = coeff; }
 
-    void ConfigureUAVTailSitterWingAeroCenters(int wing_id, int num_centers_per_wing, chrono::ChVector3d p1, chrono::ChVector3d p2) override;
+    void ConfigureUAVAeroSurfaces(std::vector<aerodynamicsurfacestruct>& aero_surfaces) override;
 
 private:
     // ---------------- Internal state ----------------
 
-    chrono::ChSystemNSC& m_physics_;                             // Reference to Chrono physics system
-    std::string name_;                                           // UAV name
-    std::string shapes_dir;                                      // Path to visual shape files (.obj)
-    std::shared_ptr<chrono::ChBodyAuxRef> InertialFrameNED;      // Inertial NED frame chrono-body
-    chassisstruct chassis;                                       // Chassis data
-    aerodynamicstruct aerodynamics;                              // Vehicle aerodynamics
-    std::array<propstruct, nop> props;                           // Propeller data
-    std::array<motorstruct, nop> motors;                         // Actuator data
-    std::vector<LinkData> links;                                 // All the link data for the UAV
-    std::vector<std::shared_ptr<chrono::ChBodyAuxRef>> bodylist; // All body pointers for registration
-    std::vector<std::shared_ptr<chrono::ChLinkBase>> linklist;   // All link pointers for registration
+    chrono::ChSystemNSC& m_physics_;                                // Reference to Chrono physics system
+    std::string name_;                                              // UAV name
+    std::string shapes_dir;                                         // Path to visual shape files (.obj)
+    std::shared_ptr<chrono::ChBodyAuxRef> InertialFrameNED;         // Inertial NED frame chrono-body
+    chassisstruct chassis;                                          // Chassis data
+    chassisaerodynamicstruct chassisaero;                           // Vehicle aerodynamic for the chassis
+    std::vector<aerodynamicsurfacestruct> aerosurfaces;             // Vehicle aerodynamic surfaces vector
+    std::array<propstruct, nop> props;                              // Propeller data
+    std::array<motorstruct, nop> motors;                            // Actuator data
+    std::vector<LinkData> links;                                    // All the link data for the UAV
+    std::vector<std::shared_ptr<chrono::ChBodyAuxRef>> bodylist;    // All body pointers for registration
+    std::vector<std::shared_ptr<chrono::ChLinkBase>> linklist;      // All link pointers for registration
 };
 
 }   // namespace _uav_

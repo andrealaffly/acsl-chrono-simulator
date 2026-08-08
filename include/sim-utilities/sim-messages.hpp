@@ -200,7 +200,7 @@ inline void SIMULATOR_INFO_STREAM_NO_TAG(const T1& str, const T2& value, int thr
 
 // Function to print an error message of any type and terminate the program
 template <typename T>
-inline void SIMULATOR_ERROR(const T& msg)
+[[noreturn]] inline void SIMULATOR_ERROR(const T& msg)
 {
     std::cerr << COLOR_RED << "[ERROR] [--ACSL SIMULATOR--] " << msg << " " << COLOR_RESET << std::endl;
     std::exit(EXIT_FAILURE);  // Exit the program with a failure status
@@ -208,7 +208,7 @@ inline void SIMULATOR_ERROR(const T& msg)
 
 // Function to print a string and another data type as an error and terminate the program
 template <typename T1, typename T2>
-inline void SIMULATOR_ERROR(const T1& str, const T2& value)
+[[noreturn]] inline void SIMULATOR_ERROR(const T1& str, const T2& value)
 {
     std::cerr << COLOR_RED << "[ERROR] [--ACSL SIMULATOR--] " << str << " " << value << " " << COLOR_RESET << std::endl;
     std::exit(EXIT_FAILURE);  // Exit the program with a failure status

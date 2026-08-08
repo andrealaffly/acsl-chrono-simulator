@@ -81,9 +81,9 @@ platform:
   # Set to true to import the x8copter
   x8copter: false
   # Set to true to import the tailsitter
-  tailsitter: false
+  tailsitter: true
   # Set to true to import the medium quadcotper
-  quadm: true
+  quadm: false
 
 # ============================================================================
 # UAV Aerodynamics Selection
@@ -95,9 +95,9 @@ aerodynamics:
   # Set to true to import the chassis drag aerodynamics
   chassis_drag: true
   # Set to true to import the wing aerodynamics
-  wing_aero: false
+  wing_aero: true
   # Set to true to print the wing aerodynamic state data to the terminal screen
-  aero_terminal: false
+  aero_terminal: true
 
 # ============================================================================
 # UAV Motor Disturbances
@@ -137,11 +137,11 @@ controller:
     mrac: false
     tlmrac: false
   tailsitter:
-    mrac_geometric: false 
-    mrac_hybrid: false
+    mrac_geometric: false
+    mrac_hybrid: true
   quadm:
     mrac_omega: false
-    mrac_geometric: true
+    mrac_geometric: false
 
 # ============================================================================
 # SIMULATION Environment Selection
@@ -164,10 +164,10 @@ interp:
   filetype: csv
 
 poly:
-  # Set to true to use the segmented minimum-jerk polynomial trajectory module
+  # Set to true to use the segmented minimum-jerk p olynomial trajectory module
   enabled: true
   # Type in the trajectory filename that needs to be imported
-  filename: takeoff_1meter
+  filename: faster_bank_traj0p8
   # Type in the filetype of the trajectory filename that needs to be imported
   filetype: json
 
