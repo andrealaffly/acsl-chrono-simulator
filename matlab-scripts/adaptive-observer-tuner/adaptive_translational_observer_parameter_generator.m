@@ -57,12 +57,12 @@ addpath("functions/");
 
 
 % GAINS FOR THE A_ref_y MATRIX
-K_P_ref_y = [17,  0.0,  0.0;
-             0.0,  50,  0.0;
-             0.0,  0.0,  17];
-K_D_ref_y = [ 90, 0.0,  0.0;
-             0.0,  160,  0.0;
-             0.0, 0.0,  142];
+K_P_ref_y = [3.58,  0.0,  0.0;
+             0.0,  6.58,  0.0;
+             0.0,  0.0,  16.58];
+K_D_ref_y = [ 37.83, 0.0,  0.0;
+             0.0,  37.83,  0.0;
+             0.0, 0.0,  107.83];
 
 % GAINS FOR THE A_tran_y MATRIX
 K_P_tran_y = [17,  0.0,  0.0;
@@ -77,21 +77,21 @@ build_transient_A_from_reference_A = true;
 build_reference_A_from_transient_A = false;
 
 % OBSERVER ADAPTIVE RATES
-param.Gamma_y = blkdiag(30000, ...
-                        30000, ...
-                        20000);
+param.Gamma_y = blkdiag(2500, ...
+                        2500, ...
+                        30000);
 
 param.Gamma_Theta_y = blkdiag(1e-5, ...
                               1e-5, ...
                               1e-5, ...
                               1e-5); 
 
-param.Gamma_g_y = blkdiag(9000, ...
-                          9000, ...
-                          9000);
+param.Gamma_g_y = blkdiag(0.09, ...
+                          0.0, ...
+                          0.9);
 
 % OBSERVER GAINS PROJECTION OPERTAOR PARAMETERS
-param.projection_x_max_K_hat_y_observer = 240^2;
+param.projection_x_max_K_hat_y_observer = 180^2;
 param.projection_epsilon_K_hat_y_observer = 50;
 
 param.projection_x_max_Theta_hat_observer = 0.095^2;
