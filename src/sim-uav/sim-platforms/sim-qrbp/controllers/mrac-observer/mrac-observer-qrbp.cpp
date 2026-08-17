@@ -999,7 +999,7 @@ void mrac_observer::observe_outerloop() {
     if (std::abs(error_norm_vs_mrao) <= 1e-6) {
         oim.beta_vs_mrao.setZero(oim.obs_error_vs_mrao.size());
     } else {
-        oim.beta_vs_mrao = 0.45 * oim.rho_vs_mrao * (oim.obs_error_vs_mrao / error_norm_vs_mrao);
+        oim.beta_vs_mrao = 0.01 * oim.rho_vs_mrao * (oim.obs_error_vs_mrao / error_norm_vs_mrao);
     }
 
     // Compute the virtual control input for the observer
@@ -1118,7 +1118,7 @@ void mrac_observer::observe_outerloop() {
     if (std::abs(error_norm_vs_2l_mrao) <= 1e-6) {
         oim.beta_vs_2l_mrao.setZero(oim.obs_error_vs_2l_mrao.size());
     } else {
-        oim.beta_vs_2l_mrao = 0.45 * oim.rho_vs_2l_mrao * (oim.obs_error_vs_2l_mrao / error_norm_vs_2l_mrao);
+        oim.beta_vs_2l_mrao = 0.01 * oim.rho_vs_2l_mrao * (oim.obs_error_vs_2l_mrao / error_norm_vs_2l_mrao);
     }
 
     // Compute the virtual control input for the observer
@@ -1166,8 +1166,8 @@ void mrac_observer::observe_outerloop() {
                                                                     oip.projection_x_max_K_hat_g_y_observer,
                                                                     oip.projection_epsilon_K_hat_g_y_observer);
                                                             
-    oim.K_hat_g_y_vs_2l_mrao_dot = proj_op_output_K_hat_g_y_2l_mrao.projected_matrix;
-    oim.proj_op_activated_K_hat_g_y_vs_2l_mrao = proj_op_output_K_hat_g_y_2l_mrao.projection_operator_activated;
+    oim.K_hat_g_y_vs_2l_mrao_dot = proj_op_output_K_hat_g_y_vs_2l_mrao.projected_matrix;
+    oim.proj_op_activated_K_hat_g_y_vs_2l_mrao = proj_op_output_K_hat_g_y_vs_2l_mrao.projection_operator_activated;
 
 }
 
@@ -1257,12 +1257,14 @@ void mrac_observer::differentiate_innerloop() {
     if (std::abs(error_norm_vs_mrad) <= 1e-6) {
         dim.beta_vs_mrad.setZero(dim.obs_error_vs_mrad.size());
     } else {
-        dim.beta_vs_mrad = 0.001 * dim.rho_vs_mrad * (dim.obs_error_vs_mrad / error_norm_vs_mrad);
+        dim.beta_vs_mrad = 0.002 * dim.rho_vs_mrad * (dim.obs_error_vs_mrad / error_norm_vs_mrad);
     }
 
     // Compute the virtual control input for the differentitator
-    dim.u_vs_mrad << dim.eta_rot_unwrapped - dsm.K_hat_y_mrad.transpose() * dim.y_measured_vs_mrad 
-                  + dsm.Theta_hat_vs_mrad.transpose() * dim.Phi_y_mrad;
+    dim.u_vs_mrad << dim.eta_rot_unwrapped
+                    - dsm.K_hat_y_vs_mrad.transpose() * dim.y_measured_vs_mrad
+                    + dsm.Theta_hat_vs_mrad.transpose() * dim.Phi_y_vs_mrad
+                    + dim.beta_vs_mrad;
 
     // Compute the estimated state to be integrated
     dim.x_hat_vs_mrad_dot << dip.A_ref_y_diff * dsm.x_hat_vs_mrad + dip.B_diff * dim.u_vs_mrad
@@ -1322,14 +1324,14 @@ void mrac_observer::differentiate_innerloop() {
 
     // Compute the estimated state to be integrated
     dim.x_hat_2l_mrad_dot << dip.A_ref_y_diff * dsm.x_hat_2l_mrad + dip.B_diff * dim.u_2l_mrad
-                           + dip.L_diff * dim.obs_error_2l_mrad;
+                            + dip.L_diff * dip.C_diff * dim.nu_2l_mrad;
 
     // Compute the transient error model
     dim.eta_2l_mrad_dot << dip.A_tran_y_diff * dsm.eta_2l_mrad;
 
     // Compute the derivative of the differentiator gains to be integrated
-    dim.K_hat_y_2l_mrad_dot << -dip.Gamma_y_diff * dim.y_measured_2l_mrad * dim.nu_2l_mrad.transpose();
-    dim.Theta_hat_2l_mrad_dot << -dip.Gamma_Theta_diff * dim.Phi_y_2l_mrad * dim.nu_2l_mrad.transpose();
+    dim.K_hat_y_2l_mrad_dot << -dip.Gamma_y_diff * dim.y_measured_2l_mrad * dim.nu_2l_mrad.transpose() * dip.C_diff.transpose();
+    dim.Theta_hat_2l_mrad_dot << -dip.Gamma_Theta_diff * dim.Phi_y_2l_mrad * dim.nu_2l_mrad.transpose() * dip.C_diff.transpose();
     dim.K_hat_g_y_2l_mrad_dot << -dip.Gamma_g_y_diff * dim.obs_error_2l_mrad * dim.nu_2l_mrad.transpose() * dip.C_diff.transpose();
 
     // Projection operator - Ball - NO boolean to switch off projection. It is always on.
@@ -1389,11 +1391,15 @@ void mrac_observer::differentiate_innerloop() {
     dim.rho_vs_2l_mrad = dip.lambda_bar_diff * dip.theta_bar_diff * dim.Phi_y_vs_2l_mrad.norm();
     
     // Compute beta Eq. (40)
-    double error_norm_vs_2l_mrad = dim.obs_error_vs_2l_mrad.norm();
-    if (std::abs(error_norm_vs_2l_mrad) <= 1e-6) {
-        dim.beta_vs_2l_mrad.setZero(dim.obs_error_vs_2l_mrad.size());
-    } else {
-        dim.beta_vs_2l_mrad = 0.001 * dim.rho_vs_2l_mrad * (dim.obs_error_vs_2l_mrad / error_norm_vs_2l_mrad);
+    const Eigen::Vector3d nu_y_vs_2l_mrad = dip.C_diff * dim.nu_vs_2l_mrad;
+
+    const double nu_y_norm_vs_2l_mrad = nu_y_vs_2l_mrad.norm();
+
+    if (nu_y_norm_vs_2l_mrad <= 1e-6) { 
+        dim.beta_vs_2l_mrad.setZero();
+    }
+    else {
+        dim.beta_vs_2l_mrad = 0.002 * dim.rho_vs_2l_mrad * (nu_y_vs_2l_mrad / nu_y_norm_vs_2l_mrad);
     }
 
     // Compute the virtual control input for the differentitator
@@ -1404,14 +1410,14 @@ void mrac_observer::differentiate_innerloop() {
 
     // Compute the estimated state to be integrated
     dim.x_hat_vs_2l_mrad_dot << dip.A_ref_y_diff * dsm.x_hat_vs_2l_mrad + dip.B_diff * dim.u_vs_2l_mrad
-                           + dip.L_diff * dim.obs_error_vs_2l_mrad;
+                              + dip.L_diff * dip.C_diff * dim.nu_vs_2l_mrad;
 
     // Compute the transient error model
     dim.eta_vs_2l_mrad_dot << dip.A_tran_y_diff * dsm.eta_vs_2l_mrad;
 
     // Compute the derivative of the differentiator gains to be integrated
-    dim.K_hat_y_vs_2l_mrad_dot << -dip.Gamma_y_diff * dim.y_measured_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose();
-    dim.Theta_hat_vs_2l_mrad_dot << -dip.Gamma_Theta_diff * dim.Phi_y_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose();
+    dim.K_hat_y_vs_2l_mrad_dot << -dip.Gamma_y_diff * dim.y_measured_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
+    dim.Theta_hat_vs_2l_mrad_dot << -dip.Gamma_Theta_diff * dim.Phi_y_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
     dim.K_hat_g_y_vs_2l_mrad_dot << -dip.Gamma_g_y_diff * dim.obs_error_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
 
     // Projection operator - Ball - NO boolean to switch off projection. It is always on.
