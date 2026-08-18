@@ -37,8 +37,9 @@
 #ifndef MRAC_GEOMETRIC_TAILSITTER_HPP_
 #define MRAC_GEOMETRIC_TAILSITTER_HPP_
 
-#include "sim-control-base.hpp"     // Include for the base class of a controller defined in the simualtor 
+#include "sim-control-base.hpp"           // Include for the base class of a controller defined in the simualtor 
 #include "tailsitter-parameter-file.hpp"  // Include for the hardcoded tailsitter parameters that are common for all controllers
+#include "sim-aerofoil.hpp"               // Include for the aerodynamic model of the tailsitter
 
 namespace _acsl_
 {
@@ -296,6 +297,38 @@ struct differentiator_internal_members
   bool first_run_differentiator = false;                 // First run boolean to initialize the differentiator state
 };
 
+// Structure for all the aerodynamic calculations
+struct aerodynamics_internal_members
+{
+    Eigen::Matrix<double, 3, 1> x_tran_vel_body;                   // Translational velocity
+    double v_norm_sq;                                              // \| V_J \|^2
+    
+    double alpha_up;                                               // A.o.A upper wing
+    double alpha_lw;                                               // A.o.A lower wing
+    double alpha_rt;                                               // A.o.A right stab
+    double alpha_lt;                                               // A.o.A left stab
+
+    double alpha_com;                                              // A.o.A at COM
+    double beta_com;                                               // Sideslip angle at COM
+
+    Eigen::Matrix<double, 3, 3> Rwj;                               // Rotation matrix from the wind to the body frame
+
+    double cl_up;                                                  // Coefficient of lift for upper wing
+    double cl_lw;                                                  // Coefficient of lift for lower wing
+    double cl_rt;                                                  // Coefficient of lift for right stab
+    double cl_lt;                                                  // Coefficient of lift for left stab
+
+    double cd_up;                                                  // Coefficient of drag for upper wing
+    double cd_lw;                                                  // Coefficient of drag for lower wing
+    double cd_rt;                                                  // Coefficient of drag for right stab
+    double cd_lt;                                                  // Coefficient of drag for left stab
+
+    double cm_up;                                                  // Coefficient of moment for upper wing
+    double cm_lw;                                                  // Coefficient of moment for lower wing
+    double cm_rt;                                                  // Coefficient of moment for right stab
+    double cm_lt;                                                  // Coefficient of moment for left stab
+};
+
 // =========================================================================================================
 // mrac_geometric.hpp   -- TAILSITTER MRAC geometric controller
 //   - Implements a MRAC controller for rotation matrices and angular rates on the TAILSITTER platform.
@@ -423,6 +456,12 @@ private:
     // Define the internal integrated state members of the differentiator
     ::_acsl_::_tailsitter_::_mrac_geometric_::differentiator_integrated_state_members dsm;
 
+    // Initiate the coefficient computation function
+    ::_acsl_::_uav_::_aerofoil_::simairfoil aerofoil{::_acsl_::_uav_::_aerofoil_::AirFoilType::NACA0012};
+
+    // Define the internal members for the aerodynamics
+    ::_acsl_::_tailsitter_::_mrac_geometric_::aerodynamics_internal_members aim;
+
 private:
     // -------------------------------------------------------------------------
     // NON API CONTROLLER SPECIFIC FUNCTIONS - WILL BE DIFF FOR DIFF CONTROLLERS
@@ -444,6 +483,9 @@ private:
 
     // Assign the values from rk4 to controller internal members
     void assign_from_rk4();
+
+    // Function to compute the aerodynamics 
+    void compute_aerodynamics();
 
 };
 

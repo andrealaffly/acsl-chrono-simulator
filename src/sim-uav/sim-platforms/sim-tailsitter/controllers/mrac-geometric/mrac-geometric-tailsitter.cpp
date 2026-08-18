@@ -819,11 +819,78 @@ void mrac_geometric::compute_normalized_thrusts()
     //           << std::endl;
 }
 
+// Function to compute the aerodynamics
+void mrac_geometric::compute_aerodynamics() 
+{
+    // Compute the translational velocity in the body frame
+    aim.x_tran_vel_body << cim.Rij * cim.x_tran_vel;
+
+    // Compute the norm of the velocity
+    aim.v_norm_sq = aim.v_norm_sq = aim.x_tran_vel_body.squaredNorm();
+
+    // Compute the aerodynamic angles
+    aim.alpha_up = atan2(aim.x_tran_vel_body(0), -1.0 * (aim.x_tran_vel_body(2) - LY * cim.omega(0)) );
+    aim.alpha_lw = atan2(aim.x_tran_vel_body(0), -1.0 * (aim.x_tran_vel_body(2) + LY * cim.omega(0)) );
+    aim.alpha_rt = atan2(aim.x_tran_vel_body(1), 
+                        sqrt( 
+                                (aim.x_tran_vel_body(0) - LY * cim.omega(2)) * (aim.x_tran_vel_body(0) - LY * cim.omega(2))  +
+                                (aim.x_tran_vel_body(2) + LY * cim.omega(1)) * (aim.x_tran_vel_body(2) + LY * cim.omega(1))
+                            )
+                        );
+    aim.alpha_lt = atan2(aim.x_tran_vel_body(1), 
+                        sqrt( 
+                                (aim.x_tran_vel_body(0) + LY * cim.omega(2)) * (aim.x_tran_vel_body(0) + LY * cim.omega(2))  +
+                                (aim.x_tran_vel_body(2) - LY * cim.omega(1)) * (aim.x_tran_vel_body(2) - LY * cim.omega(1))
+                            )
+                        );
+
+    aim.alpha_com = atan2(aim.x_tran_vel_body(0), -1.0 * aim.x_tran_vel_body(2));
+    aim.beta_com = atan2( aim.x_tran_vel_body(1), 
+                          sqrt( 
+                                aim.x_tran_vel_body(0)*aim.x_tran_vel_body(0) + 
+                                aim.x_tran_vel_body(2)*aim.x_tran_vel_body(2) 
+                               ) 
+                        );
+
+    // Compute the aerodynamic DCM matrix
+    aim.Rwj(0,0) = -sin(aim.alpha_com) * cos(aim.beta_com);
+    aim.Rwj(1,0) = sin(aim.beta_com);
+    aim.Rwj(2,0) = cos(aim.alpha_com) * cos(aim.beta_com);
+    
+    aim.Rwj(0,1) = sin(aim.alpha_com) * sin(aim.beta_com);
+    aim.Rwj(1,1) = cos(aim.beta_com);
+    aim.Rwj(2,1) = -cos(aim.alpha_com)*sin(aim.beta_com);
+
+    aim.Rwj(0,2) = -cos(aim.alpha_com);
+    aim.Rwj(1,2) = 0.0;
+    aim.Rwj(2,2) = -sin(aim.alpha_com);
+
+    // Compute the coefficient of lift for all aerodynamic surfaces
+    aim.cl_up = aerofoil.ComputeCL(aim.alpha_up);
+    aim.cl_lw = aerofoil.ComputeCL(aim.alpha_lw);
+    aim.cl_rt = aerofoil.ComputeCL(aim.alpha_rt);
+    aim.cl_lt = aerofoil.ComputeCL(aim.alpha_lt);
+
+    // Compute the coefficient of drag for all aerodynamic surfaces
+    aim.cd_up = aerofoil.ComputeCD(aim.alpha_up);
+    aim.cd_lw = aerofoil.ComputeCD(aim.alpha_lw);
+    aim.cd_rt = aerofoil.ComputeCD(aim.alpha_rt);
+    aim.cd_lt = aerofoil.ComputeCD(aim.alpha_lt);
+
+    // Compute the moment coefficient for all aerodynamic surfaces
+    aim.cm_up = aerofoil.ComputeCM(aim.alpha_up);
+    aim.cm_lw = aerofoil.ComputeCM(aim.alpha_lw);
+    aim.cm_rt = aerofoil.ComputeCM(aim.alpha_rt);
+    aim.cm_lt = aerofoil.ComputeCM(aim.alpha_lt);
+
+}
+
 // Function that is called in sim-bridge.cpp
 void mrac_geometric::run(const double time_step_rk4_) {
 
     // Process the dynamics --------------------------------------------------------
     // 1. Compute the aerodynamics
+    compute_aerodynamics();
 
     // 2. Compute the translational control input
     compute_translational_control_in_I();
