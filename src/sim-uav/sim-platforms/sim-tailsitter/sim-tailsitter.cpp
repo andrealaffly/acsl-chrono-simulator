@@ -835,10 +835,10 @@ void simtailsitter::ConfigureTAILSITTERPayload()
         chrono::GetChronoDataFile("textures/pinkwhite.png")
     );
 
-    this->getPhysicsSystem().Add(sphereBody);
-    this->getPhysicsSystem().Add(sphereBody1);
-    this->getPhysicsSystem().Add(sphereBody2);
-    this->getPhysicsSystem().Add(sphereBody3);
+    // this->getPhysicsSystem().Add(sphereBody);
+    // this->getPhysicsSystem().Add(sphereBody1);
+    // this->getPhysicsSystem().Add(sphereBody2);
+    // this->getPhysicsSystem().Add(sphereBody3);
 
 
 }

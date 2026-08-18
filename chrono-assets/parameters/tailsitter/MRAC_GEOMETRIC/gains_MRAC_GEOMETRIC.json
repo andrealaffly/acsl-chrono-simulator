@@ -114,48 +114,6 @@
       ]
     }
   },
-  "FILTERS": {
-    "A_filter_mu": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [-72, -1600],
-        [  1,     0]
-      ]
-    },
-    "B_filter_mu": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [1],
-        [0]
-      ]      
-    },
-    "C_filter_mu": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [1600, 0]
-      ]
-    },
-    "A_filter_omega_d": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [-50, -2500],
-        [  1,     0]
-      ]
-    },
-    "B_filter_omega_d": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [1],
-        [0]
-      ]
-    },
-    "C_filter_omega_d": {
-      "scaling_coef": 0.15,
-      "matrix": [
-        [2500, 0]
-      ]
-    }
-  },
   "ROTATIONAL": {
     "KP_omega_ref": {
       "scaling_coef" : 0.45,
@@ -289,5 +247,158 @@
 
     "projection_x_max_Theta_rotational": 0.0225,
     "projection_epsilon_Theta_rotational": 0.04
+  },
+  "DIFFERENTIATOR": {
+    "C_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 1]
+      ]
+    },
+    "B_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1]
+      ]
+    },
+    "L_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [-0.33754, 0, 0],
+        [0, -0.33754, 0],
+        [0, 0, -0.33754],
+        [2.517581, 0, 0],
+        [0, 2.517581, 0],
+        [0, 0, 2.517581]
+      ]
+    },
+    "A_ref_y_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 1],
+        [-2.51, 0, 0, -15.62, 0, 0],
+        [0, -2.52, 0, 0, -15.66, 0],
+        [0, 0, -2.53, 0, 0, -15.68]
+      ]
+    },
+    "A_tran_y_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 1],
+        [-241.516953, 0, 0, -31.081631, 0, 0],
+        [0, -241.516953, 0, 0, -31.081631, 0],
+        [0, 0, -241.516953, 0, 0, -31.081631]
+      ]
+    },
+    "Gamma_y_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0.0087, 0, 0],
+        [0, 0.0087, 0],
+        [0, 0, 0.0087]
+      ]
+    },
+    "Gamma_Theta_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+      ]
+    },
+    "Gamma_g_y_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0.012, 0, 0],
+        [0, 0.012, 0],
+        [0, 0, 0.012]
+      ]
+    },
+    "K_ye_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [-15.62, 0, 0],
+        [0, -15.66, 0],
+        [0, 0, -15.68]
+      ]
+    },
+    "Theta_e_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+      ]
+    },
+    "K_gye_differentiator": {
+      "scaling_coef": 1,
+      "matrix": [
+        [-15.461631, 0, 0],
+        [0, -15.421631, 0],
+        [0, 0, -15.401631]
+      ]
+    },
+    "projection_x_max_K_hat_y_differentiator": 50,
+    "projection_epsilon_K_hat_y_differentiator": 5,
+    "projection_x_max_Theta_hat_differentiator": 0.5,
+    "projection_epsilon_Theta_hat_differentiator": 0.01,
+    "projection_x_max_K_hat_g_y_differentiator": 50,
+    "projection_epsilon_K_hat_g_y_differentiator": 5,
+    "lambda_bar_differentiator": 1,
+    "theta_bar_differentiator": 1
+  },
+  "FILTERS": {
+    "use_filter" : true,
+    "A_filter_mu": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [-72, -1600],
+        [  1,     0]
+      ]
+    },
+    "B_filter_mu": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [1],
+        [0]
+      ]      
+    },
+    "C_filter_mu": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [1600, 0]
+      ]
+    },
+    "A_filter_omega_d": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [-50, -2500],
+        [  1,     0]
+      ]
+    },
+    "B_filter_omega_d": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [1],
+        [0]
+      ]
+    },
+    "C_filter_omega_d": {
+      "scaling_coef": 0.15,
+      "matrix": [
+        [2500, 0]
+      ]
+    }
   }
 }

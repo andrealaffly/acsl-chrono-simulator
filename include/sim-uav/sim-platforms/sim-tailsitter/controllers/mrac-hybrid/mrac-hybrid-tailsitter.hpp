@@ -50,7 +50,7 @@ namespace _mrac_hybrid_
 {
 
 // Define the number of states in the boost array for integration
-constexpr int NSI = 202;
+constexpr int NSI = 244;
 
 // -------------------------------------------------------------------------------------------------------------------- //
 // CONTROLLER STRUCTURES
@@ -85,6 +85,7 @@ struct controller_internal_parameters {
   double projection_x_max_Theta_translational;  	// Translational Projection limit for Theta_hat
   double projection_epsilon_Theta_translational; 	// Translational Projection tolerance for Theta_hat
 
+  bool use_filter;                                // Boolean to switch between the second order filter or the 2L VS MRAD
   Eigen::Matrix<double, 2, 2> A_filter_mu;        // Differentiator A matrix for \mu
   Eigen::Matrix<double, 2, 1> B_filter_mu;        // Differentiator B matrix for \mu
   Eigen::Matrix<double, 1, 2> C_filter_mu;        // Differentiator C matrix for q_d
@@ -248,6 +249,68 @@ struct controller_internal_members {
   Eigen::Matrix<double, 6, 1> e_previous_translational;          // Translational tracking error at previous timestep
 };
 
+// Structure for all parameter members of the differentiators
+struct differentiator_internal_paramters
+{
+   Eigen::Matrix<double, 3, 6> C_diff;              // C matrix for the differentiator plant
+    Eigen::Matrix<double, 6, 3> B_diff;             // B matrix for the differentiator plant  
+    Eigen::Matrix<double, 6, 3> L_diff;             // L matrix for the differentiator plant
+    Eigen::Matrix<double, 6, 6> A_ref_y_diff;       // A matrix for the differentiator reference model
+    Eigen::Matrix<double, 6, 6> A_tran_y_diff;      // A matrix for the transient error plant
+    Eigen::Matrix<double, 3, 3> Gamma_y_diff;       // Adaptive gain matrix for the differentiator
+    Eigen::Matrix<double, 3, 3> Gamma_Theta_diff;   // Adaptive gain matrix for the differentiator
+    Eigen::Matrix<double, 3, 3> Gamma_g_y_diff;     // Adaptive gain matrix for the differentiator
+    
+    double projection_x_max_K_hat_y_diff;           // Projection params
+    double projection_epsilon_K_hat_y_diff;         // Projection params
+    
+    double projection_x_max_Theta_hat_diff;         // Projection params
+    double projection_epsilon_Theta_hat_diff;       // Projection params
+    
+    double projection_x_max_K_hat_g_y_diff;         // Projection params
+    double projection_epsilon_K_hat_g_y_diff;       // Projection params
+
+    double lambda_bar_diff;                         // Norm of the Lambda matrix for the differentiator plant
+    double theta_bar_diff;                          // Norm of the Theta matrix for the differentiator plant
+
+    Eigen::Matrix<double, 3, 3> K_ye_diff;          // Initial gains for the differentiator
+    Eigen::Matrix<double, 3, 3> Theta_e_diff;       // Initial gains for the differentiator
+    Eigen::Matrix<double, 3, 3> K_gye_diff;         // Initial gains for the differentiator
+};
+
+// Structure for the members that are mapped to the rk4 vector after integration
+struct differentiator_integrated_state_members
+{
+  Eigen::Matrix<double, 3, 1> int_mu_tran_I;             // The integral of the translational control input
+  Eigen::Matrix<double, 6, 1> x_hat_vs_2l_mrad;          // Estimated translational control input for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 3> K_hat_y_vs_2l_mrad;        // Adaptive gain matrix for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 3> Theta_hat_vs_2l_mrad;      // Adaptive gain matrix for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 3> K_hat_g_y_vs_2l_mrad;      // Adaptive gain matrix for the VS 2L MRAD transient term
+  Eigen::Matrix<double, 6, 1> eta_vs_2l_mrad;            // Transient error model for the VS 2L MRAD
+};
+
+// Structure for the internal members of the observers
+struct differentiator_internal_members
+{
+  Eigen::Matrix<double, 6, 1> x_hat_vs_2l_mrad_dot;     // Estimated translational input states for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 3> K_hat_y_vs_2l_mrad_dot;   // Adaptive gain matrix for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 3> Theta_hat_vs_2l_mrad_dot; // Adaptive gain matrix for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 3> K_hat_g_y_vs_2l_mrad_dot; // Adaptive gain matrix for the VS 2L MRAD transient term
+  Eigen::Matrix<double, 6, 1> eta_vs_2l_mrad_dot;       // Transient error model for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 1> y_measured_vs_2l_mrad;    // Measured outputs for the VS 2L MRAD
+  Eigen::Matrix<double, 6, 1> z_measured_vs_2l_mrad;    // Measured full outputs for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 1> Phi_y_vs_2l_mrad;         // Regressor vector for the VS 2L MRAD
+  Eigen::Matrix<double, 6, 1> nu_vs_2l_mrad;            // Transient error for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 1> u_vs_2l_mrad;             // Virtual control input of the VS 2L MRAD
+  double rho_vs_2l_mrad;                                // rho term for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 1> beta_vs_2l_mrad;          // beta term for the VS 2L MRAD
+  Eigen::Matrix<double, 3, 1> obs_error_vs_2l_mrad;     // (y_measured - y_estimated) for VS 2L MRAD
+  bool proj_op_activated_K_hat_y_vs_2l_mrad;            // Boolean to record projection operator activation - VS 2L MRAD
+  bool proj_op_activated_Theta_hat_vs_2l_mrad;          // Boolean to record projection operator activation - VS 2L MRAD
+  bool proj_op_activated_K_hat_g_y_vs_2l_mrad;          // Boolean to record projection operator activation - VS 2L MRAD
+  bool first_run_differentiator = false;                 // First run boolean to initialize the differentiator state
+};
+
 // =========================================================================================================
 // mrac_hybrid.hpp   -- TAILSITTER MRAC hyrid controller
 //   - Implements a MRAC controller for rotation matrices and angular rates on the TAILSITTER platform.
@@ -366,6 +429,15 @@ private:
 
     // Member to unwrap the heading for heading command
     ::_shared_::_compute_::SimplePsiUnwrapState psiState;
+
+    // Define the internal parameter members of the differentiator
+    ::_acsl_::_tailsitter_::_mrac_hybrid_::differentiator_internal_paramters dip;
+
+    // Define the internal members of the differentiator
+    ::_acsl_::_tailsitter_::_mrac_hybrid_::differentiator_internal_members dim;
+
+    // Define the internal integrated state members of the differentiator
+    ::_acsl_::_tailsitter_::_mrac_hybrid_::differentiator_integrated_state_members dsm;
 
 private:
     // -------------------------------------------------------------------------

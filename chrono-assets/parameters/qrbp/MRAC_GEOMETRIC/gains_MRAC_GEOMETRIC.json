@@ -114,48 +114,6 @@
       ]
     }
   },
-  "FILTERS": {
-    "A_filter_mu": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [-72, -1600],
-        [  1,     0]
-      ]
-    },
-    "B_filter_mu": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [1],
-        [0]
-      ]      
-    },
-    "C_filter_mu": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [1600, 0]
-      ]
-    },
-    "A_filter_omega_d": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [-50, -2500],
-        [  1,     0]
-      ]
-    },
-    "B_filter_omega_d": {
-      "scaling_coef": 1.0,
-      "matrix": [
-        [1],
-        [0]
-      ]
-    },
-    "C_filter_omega_d": {
-      "scaling_coef": 0.15,
-      "matrix": [
-        [2500, 0]
-      ]
-    }
-  },
   "ROTATIONAL": {
     "KP_omega_ref": {
       "scaling_coef" : 0.45,
@@ -289,5 +247,47 @@
 
     "projection_x_max_Theta_rotational": 0.0225,
     "projection_epsilon_Theta_rotational": 0.04
+  },
+  "FILTERS": {
+    "A_filter_mu": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [-72, -1600],
+        [  1,     0]
+      ]
+    },
+    "B_filter_mu": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [1],
+        [0]
+      ]      
+    },
+    "C_filter_mu": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [1600, 0]
+      ]
+    },
+    "A_filter_omega_d": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [-50, -2500],
+        [  1,     0]
+      ]
+    },
+    "B_filter_omega_d": {
+      "scaling_coef": 1.0,
+      "matrix": [
+        [1],
+        [0]
+      ]
+    },
+    "C_filter_omega_d": {
+      "scaling_coef": 0.15,
+      "matrix": [
+        [2500, 0]
+      ]
+    }
   }
 }

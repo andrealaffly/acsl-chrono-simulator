@@ -98,6 +98,7 @@ void mrac_hybrid::read_params(const std::string& jsonFile)
   cip.Q_rot = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["ROTATIONAL"]["Q_rotational"], 3, 3);
 
   // Differentiator matrices
+  cip.use_filter = j["FILTERS"]["use_filter"];
   cip.A_filter_mu = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["FILTERS"]["A_filter_mu"], 2, 2);
   cip.B_filter_mu = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["FILTERS"]["B_filter_mu"], 2, 1);
   cip.C_filter_mu = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["FILTERS"]["C_filter_mu"], 1, 2);
@@ -133,6 +134,34 @@ void mrac_hybrid::read_params(const std::string& jsonFile)
   cip.use_hybrid = j["HYBRID"]["use_hybrid"];
   cip.alpha_hybrid_series_translational = j["HYBRID"]["alpha_hybrid_series_translational"];
   cip.tolerance_time_reset_series_hybrid_translational = j["HYBRID"]["tolerance_time_reset_series_hybrid_translational"];
+
+  // Adaptive differentiator gains and parameter matrices
+  dip.C_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["C_differentiator"], 3, 6);
+  dip.B_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["B_differentiator"], 6, 3);
+  dip.L_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["L_differentiator"], 6, 3);
+
+  dip.A_ref_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["A_ref_y_differentiator"], 6, 6);
+  dip.A_tran_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["A_tran_y_differentiator"], 6, 6);
+
+  dip.Gamma_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Gamma_y_differentiator"], 3, 3);
+  dip.Gamma_Theta_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Gamma_Theta_differentiator"], 3, 3);
+  dip.Gamma_g_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Gamma_g_y_differentiator"], 3, 3);
+
+  dip.projection_x_max_K_hat_y_diff = j["DIFFERENTIATOR"]["projection_x_max_K_hat_y_differentiator"];
+  dip.projection_epsilon_K_hat_y_diff = j["DIFFERENTIATOR"]["projection_epsilon_K_hat_y_differentiator"];
+  
+  dip.projection_x_max_Theta_hat_diff = j["DIFFERENTIATOR"]["projection_x_max_Theta_hat_differentiator"];
+  dip.projection_epsilon_Theta_hat_diff = j["DIFFERENTIATOR"]["projection_epsilon_Theta_hat_differentiator"];
+  
+  dip.projection_x_max_K_hat_g_y_diff = j["DIFFERENTIATOR"]["projection_x_max_K_hat_g_y_differentiator"];
+  dip.projection_epsilon_K_hat_g_y_diff = j["DIFFERENTIATOR"]["projection_epsilon_K_hat_g_y_differentiator"];
+
+  dip.lambda_bar_diff = j["DIFFERENTIATOR"]["lambda_bar_differentiator"];
+  dip.theta_bar_diff = j["DIFFERENTIATOR"]["theta_bar_differentiator"];
+
+  dip.K_ye_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["K_ye_differentiator"], 3, 3);
+  dip.Theta_e_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Theta_e_differentiator"], 3, 3);
+  dip.K_gye_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["K_gye_differentiator"], 3, 3);
 
 }
 
@@ -201,6 +230,15 @@ void mrac_hybrid::init(){
 
   // Set the first run to true
   cip.first_run = true;
+
+  // Initiate the rk4 vector for the differentiator gain matrices
+  int index = 202;
+  ::_shared_::_serialize_::assignElementsToDxdt(dip.K_ye_diff, this->y, index);           // For VS 2L MRAD
+  ::_shared_::_serialize_::assignElementsToDxdt(dip.Theta_e_diff, this->y, index);        // For VS 2L MRAD
+  ::_shared_::_serialize_::assignElementsToDxdt(dip.K_gye_diff, this->y, index);          // For VS 2L MRAD
+
+  // DISPLAY A DEBUG MESSAGE
+  _message_::SIMULATOR_INFO("[SIMCTL]: INITIAL PARAMETERS COMPUTED FOR MRAD DIFFERENTIATOR");
 
 }
 
@@ -272,6 +310,22 @@ void mrac_hybrid::update(double time,
 
   // 3. Capture the time before the execution of the controller ------------------
   cim.alg_start_time = std::chrono::high_resolution_clock::now();
+
+  // 4. Initialize the differentiator's estimated state vector -------------------
+  if(!dim.first_run_differentiator) {
+      // Initate the x_hat vector
+      dsm.x_hat_vs_2l_mrad << 0.0, 0.0, 0.0, 6.56683, -2.05528, -9.0455;
+      // dsm.x_hat_vs_2l_mrad << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
+      dim.x_hat_vs_2l_mrad_dot << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
+
+      // Initiate the corresponding rk4 vector
+      int index = 232; // For VS 2L MRAD states
+      ::_shared_::_serialize_::assignElementsToDxdt(dsm.x_hat_vs_2l_mrad, this->y, index);
+      _message_::SIMULATOR_INFO("[SIMCTL]: INITIAL X HAT VECTOR SET FOR DIFFERENTIATOR");
+
+      // Set the initialization condition to true
+      dim.first_run_differentiator = true;
+  }
 }
 
 // Function to assign elements from the rk4 integrator
@@ -303,6 +357,14 @@ void mrac_hybrid::assign_from_rk4()
 
   ::_shared_::_deserialize_::assignElementsToMembers(csm.integral_eQe_translational, y, index);
 
+  //------------ assign elements of the differentiator after integration  ------------//
+  ::_shared_::_deserialize_::assignElementsToMembers(dsm.K_hat_y_vs_2l_mrad, y, index);
+  ::_shared_::_deserialize_::assignElementsToMembers(dsm.Theta_hat_vs_2l_mrad, y, index);
+  ::_shared_::_deserialize_::assignElementsToMembers(dsm.K_hat_g_y_vs_2l_mrad, y, index);
+  ::_shared_::_deserialize_::assignElementsToMembers(dsm.int_mu_tran_I, y, index);
+  ::_shared_::_deserialize_::assignElementsToMembers(dsm.x_hat_vs_2l_mrad, y, index);
+  ::_shared_::_deserialize_::assignElementsToMembers(dsm.eta_vs_2l_mrad, y, index);  
+
 }
 
 // Model function for integration
@@ -333,6 +395,14 @@ void mrac_hybrid::model(const _control_::rk4_array<double, NSI> &y, _control_::r
   ::_shared_::_serialize_::assignElementsToDxdt(cim.Theta_hat_rot_dot, dy, index);
 
   ::_shared_::_serialize_::assignElementsToDxdt(cim.eQe_translational, dy, index);
+
+  //------------ Fill up the dy for integration for the differentiator ------------//
+  ::_shared_::_serialize_::assignElementsToDxdt(dim.K_hat_y_vs_2l_mrad_dot, dy, index);
+  ::_shared_::_serialize_::assignElementsToDxdt(dim.Theta_hat_vs_2l_mrad_dot, dy, index);
+  ::_shared_::_serialize_::assignElementsToDxdt(dim.K_hat_g_y_vs_2l_mrad_dot, dy, index);
+  ::_shared_::_serialize_::assignElementsToDxdt(cim.mu_tran_I, dy, index);
+  ::_shared_::_serialize_::assignElementsToDxdt(dim.x_hat_vs_2l_mrad_dot, dy, index);
+  ::_shared_::_serialize_::assignElementsToDxdt(dim.eta_vs_2l_mrad_dot, dy, index);
 
 }
 
@@ -448,7 +518,7 @@ void mrac_hybrid::compute_translational_control_in_I()
 // Function to compute the outerloop translational control rate in I using the differentiator
 void mrac_hybrid::compute_translational_control_rate()
 {
-
+  // Filter computations --------------------------------------------------------------
   // Compute the internal state for rate of change of mu
   cim.internal_state_mu_x_filter << cip.A_filter_mu * csm.state_mu_x_filter
                                   + cip.B_filter_mu * cim.mu_tran_I(0);
@@ -459,11 +529,113 @@ void mrac_hybrid::compute_translational_control_rate()
   cim.internal_state_mu_z_filter << cip.A_filter_mu * csm.state_mu_z_filter
                                   + cip.B_filter_mu * cim.mu_tran_I(2);
 
-  // Compute the rate of change of the translational virtual control input
-  cim.mu_tran_I_dot(0) = cip.C_filter_mu * csm.state_mu_x_filter;
-  cim.mu_tran_I_dot(1) = cip.C_filter_mu * csm.state_mu_y_filter;
-  cim.mu_tran_I_dot(2) = cip.C_filter_mu * csm.state_mu_z_filter;
+  // MRAD 2L VS computations ----------------------------------------------------------
+  // Assign the total z_measured vector (use actual state vector)
+  dim.z_measured_vs_2l_mrad << dsm.int_mu_tran_I(0),
+                                dsm.int_mu_tran_I(1),
+                                dsm.int_mu_tran_I(2),
+                                cim.mu_tran_I(0),
+                                cim.mu_tran_I(1),
+                                cim.mu_tran_I(2);
 
+  // Assign the measured output (use actual state vector)
+  dim.y_measured_vs_2l_mrad << dip.C_diff * dim.z_measured_vs_2l_mrad;
+
+  // Compute the observation error
+  dim.obs_error_vs_2l_mrad << dim.y_measured_vs_2l_mrad - dip.C_diff * dsm.x_hat_vs_2l_mrad;
+
+  // Compute the transient error
+  dim.nu_vs_2l_mrad << dim.z_measured_vs_2l_mrad - dsm.x_hat_vs_2l_mrad - dsm.eta_vs_2l_mrad;
+
+  // Regressor vector for the observer - It is the signal itself as we assume some noise in it
+  dim.Phi_y_vs_2l_mrad << cim.mu_tran_I;
+
+  // Compute rho Eq. (40)
+  dim.rho_vs_2l_mrad = dip.lambda_bar_diff * dip.theta_bar_diff * dim.Phi_y_vs_2l_mrad.norm();
+
+  // Compute beta Eq. (40)
+  const Eigen::Vector3d nu_y_vs_2l_mrad = dip.C_diff * dim.nu_vs_2l_mrad;
+
+  const double nu_y_norm_vs_2l_mrad = nu_y_vs_2l_mrad.norm();
+
+  if (nu_y_norm_vs_2l_mrad <= 1e-6) { 
+      dim.beta_vs_2l_mrad.setZero();
+  }
+  else {
+      dim.beta_vs_2l_mrad = 0.002 * dim.rho_vs_2l_mrad * (nu_y_vs_2l_mrad / nu_y_norm_vs_2l_mrad);
+  }
+
+  // Compute the virtual control input for the differentitator
+  dim.u_vs_2l_mrad << cim.mu_tran_I - dsm.K_hat_y_vs_2l_mrad.transpose() * dim.y_measured_vs_2l_mrad 
+                                    + dsm.Theta_hat_vs_2l_mrad.transpose() * dim.Phi_y_vs_2l_mrad
+                                    - dsm.K_hat_g_y_vs_2l_mrad.transpose() * dim.obs_error_vs_2l_mrad
+                                    + dim.beta_vs_2l_mrad;
+
+  // Compute the estimated state to be integrated
+  dim.x_hat_vs_2l_mrad_dot << dip.A_ref_y_diff * dsm.x_hat_vs_2l_mrad + dip.B_diff * dim.u_vs_2l_mrad
+                            + dip.L_diff * dip.C_diff * dim.nu_vs_2l_mrad;
+
+  // Compute the transient error model
+  dim.eta_vs_2l_mrad_dot << dip.A_tran_y_diff * dsm.eta_vs_2l_mrad;
+  
+  // Compute the derivative of the differentiator gains to be integrated
+  dim.K_hat_y_vs_2l_mrad_dot << -dip.Gamma_y_diff * dim.y_measured_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
+  dim.Theta_hat_vs_2l_mrad_dot << -dip.Gamma_Theta_diff * dim.Phi_y_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
+  dim.K_hat_g_y_vs_2l_mrad_dot << -dip.Gamma_g_y_diff * dim.obs_error_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
+
+  // Projection operator - Ball - NO boolean to switch off projection. It is always on.
+
+  // Projection operator K_hat_y_vs_2l_mrad
+  ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(dsm.K_hat_y_vs_2l_mrad)> proj_op_output_K_hat_y_vs_2l_mrad = 
+      ::_shared_::_projection_operator_::_ball_::projectionMatrix(dsm.K_hat_y_vs_2l_mrad,
+                                                                  dim.K_hat_y_vs_2l_mrad_dot,
+                                                                  dip.projection_x_max_K_hat_y_diff,
+                                                                  dip.projection_epsilon_K_hat_y_diff);
+                                                                  
+  dim.K_hat_y_vs_2l_mrad_dot = proj_op_output_K_hat_y_vs_2l_mrad.projected_matrix;
+  dim.proj_op_activated_K_hat_y_vs_2l_mrad = proj_op_output_K_hat_y_vs_2l_mrad.projection_operator_activated;
+
+  // Projection operator Theta_hat_vs_2l_mrad
+  ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(dsm.Theta_hat_vs_2l_mrad)> proj_op_output_Theta_hat_vs_2l_mrad = 
+      ::_shared_::_projection_operator_::_ball_::projectionMatrix(dsm.Theta_hat_vs_2l_mrad,
+                                                                  dim.Theta_hat_vs_2l_mrad_dot,
+                                                                  dip.projection_x_max_Theta_hat_diff,
+                                                                  dip.projection_epsilon_Theta_hat_diff);
+
+  dim.Theta_hat_vs_2l_mrad_dot = proj_op_output_Theta_hat_vs_2l_mrad.projected_matrix;
+  dim.proj_op_activated_Theta_hat_vs_2l_mrad = proj_op_output_Theta_hat_vs_2l_mrad.projection_operator_activated;
+
+  // Projection operator K_hat_g_y_mrad
+  ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(dsm.K_hat_g_y_vs_2l_mrad)> proj_op_output_K_hat_g_y_vs_2l_mrad = 
+      ::_shared_::_projection_operator_::_ball_::projectionMatrix(dsm.K_hat_g_y_vs_2l_mrad,
+                                                                  dim.K_hat_g_y_vs_2l_mrad_dot,
+                                                                  dip.projection_x_max_K_hat_g_y_diff,
+                                                                  dip.projection_epsilon_K_hat_g_y_diff);
+
+  dim.K_hat_g_y_vs_2l_mrad_dot = proj_op_output_K_hat_g_y_vs_2l_mrad.projected_matrix;
+  dim.proj_op_activated_K_hat_g_y_vs_2l_mrad = proj_op_output_K_hat_g_y_vs_2l_mrad.projection_operator_activated; // Assign the measured output (use actual state vector)
+
+
+  // Compute the rate of change of the translational virtual control input
+  if (cip.use_filter) {
+      cim.mu_tran_I_dot(0) = cip.C_filter_mu * csm.state_mu_x_filter;
+      cim.mu_tran_I_dot(1) = cip.C_filter_mu * csm.state_mu_y_filter;
+      cim.mu_tran_I_dot(2) = cip.C_filter_mu * csm.state_mu_z_filter;
+  }
+  else {
+      if (cim.t < 4.0) {
+          cim.mu_tran_I_dot(0) = cip.C_filter_mu * csm.state_mu_x_filter;
+          cim.mu_tran_I_dot(1) = cip.C_filter_mu * csm.state_mu_y_filter;
+          cim.mu_tran_I_dot(2) = cip.C_filter_mu * csm.state_mu_z_filter;
+      }
+      else {
+          cim.mu_tran_I_dot(0) = dim.x_hat_vs_2l_mrad_dot(3);
+          cim.mu_tran_I_dot(1) = dim.x_hat_vs_2l_mrad_dot(4);
+          cim.mu_tran_I_dot(2) = dim.x_hat_vs_2l_mrad_dot(5);
+      }
+      
+  }
+  
 }
 
 // Compute the orientation commands and the desired total thrust
@@ -946,6 +1118,16 @@ void mrac_hybrid::ConfigureHeaders()
       ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_r_rotational", csm.K_hat_r_rot, "[-]");
       ::_shared_::_serialize_::generateMatrixHeaders(oss, "Theta_hat_rotational", csm.Theta_hat_rot, "[-]");    
 
+  oss << "mu_dot_x Filter [N/s], "
+      << "mu_dot_y Filter [N/s], "
+      << "mu_dot_z Filter [N/s], "
+      << "mu_est_x Differentiator [N], "
+      << "mu_est_y Differentiator [N], "
+      << "mu_est_z Differentiator [N], "
+      << "mu_dot_est_x Differentiator [N], "
+      << "mu_dot_est_y Differentiator [N], "
+      << "mu_dot_est_z Differentiator [N], "
+      ;
 
   try {
       BOOST_LOG_SCOPED_THREAD_TAG("Tag", "ControllerTag");
@@ -1088,7 +1270,17 @@ void mrac_hybrid::LogData()
       ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_x_rot);
       ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_r_rot);
       ::_shared_::_serialize_::appendEigenData(oss, csm.Theta_hat_rot);
-
+  
+  oss << cip.C_filter_mu * csm.state_mu_x_filter << ", "
+      << cip.C_filter_mu * csm.state_mu_y_filter << ", "
+      << cip.C_filter_mu * csm.state_mu_z_filter << ", "
+      << dim.x_hat_vs_2l_mrad_dot(0) << ", "
+      << dim.x_hat_vs_2l_mrad_dot(1) << ", "
+      << dim.x_hat_vs_2l_mrad_dot(2) << ", "
+      << dim.x_hat_vs_2l_mrad_dot(3) << ", "
+      << dim.x_hat_vs_2l_mrad_dot(4) << ", "
+      << dim.x_hat_vs_2l_mrad_dot(5) << ", "
+      ;
 
   try {
       BOOST_LOG_SCOPED_THREAD_TAG("Tag", "ControllerTag");
