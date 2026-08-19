@@ -79,7 +79,8 @@ void mrac_geometric::read_params(const std::string& jsonFile)
     cip.Kd_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["KD_translational"], 3, 3);
     cip.Gamma_x_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_x_translational"], 6, 6);
 	cip.Gamma_r_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_r_translational"], 3, 3);
-	cip.Gamma_Theta_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_Theta_translational"], 30, 30);
+	cip.Gamma_Theta_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_Theta_translational"], 4, 4);
+    cip.Gamma_Theta1_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_Theta1_translational"], 4, 4);
 	cip.Q_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Q_translational"], 6, 6);
 
     // Rotational parameters
@@ -212,7 +213,7 @@ void mrac_geometric::init(){
 	cip.P_rot = ::_lyapunov_solver_::RealContinuousLyapunovEquation(cip.A_ref_rot, cip.Q_rot);
 
     // Initiate the rk4 vector for the differentiator gain matrices
-    int index = 201;
+    int index = 135;
     ::_shared_::_serialize_::assignElementsToDxdt(dip.K_ye_diff, this->y, index);           // For VS 2L MRAD
     ::_shared_::_serialize_::assignElementsToDxdt(dip.Theta_e_diff, this->y, index);        // For VS 2L MRAD
     ::_shared_::_serialize_::assignElementsToDxdt(dip.K_gye_diff, this->y, index);          // For VS 2L MRAD
@@ -284,7 +285,7 @@ void mrac_geometric::update(double time,
         dim.x_hat_vs_2l_mrad_dot << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
 
         // Initiate the corresponding rk4 vector
-        int index = 231; // For VS 2L MRAD states
+        int index = 165; // For VS 2L MRAD states
         ::_shared_::_serialize_::assignElementsToDxdt(dsm.x_hat_vs_2l_mrad, this->y, index);
         _message_::SIMULATOR_INFO("[SIMCTL]: INITIAL X HAT VECTOR SET FOR DIFFERENTIATOR");
 
@@ -312,6 +313,7 @@ void mrac_geometric::assign_from_rk4()
     ::_shared_::_deserialize_::assignElementsToMembers(csm.K_hat_x_tran, y, index);
 	::_shared_::_deserialize_::assignElementsToMembers(csm.K_hat_r_tran, y, index);
 	::_shared_::_deserialize_::assignElementsToMembers(csm.Theta_hat_tran, y, index);
+    ::_shared_::_deserialize_::assignElementsToMembers(csm.Theta1_hat_tran, y, index);
 
     ::_shared_::_deserialize_::assignElementsToMembers(csm.e_omega_ref_I, y, index);
     ::_shared_::_deserialize_::assignElementsToMembers(csm.omega_ref, y, index);
@@ -347,6 +349,7 @@ void mrac_geometric::model(const _control_::rk4_array<double, NSI> &y, _control_
     ::_shared_::_serialize_::assignElementsToDxdt(cim.K_hat_x_tran_dot, dy, index);
 	::_shared_::_serialize_::assignElementsToDxdt(cim.K_hat_r_tran_dot, dy, index);
 	::_shared_::_serialize_::assignElementsToDxdt(cim.Theta_hat_tran_dot, dy, index);
+    ::_shared_::_serialize_::assignElementsToDxdt(cim.Theta1_hat_tran_dot, dy, index);
 
     ::_shared_::_serialize_::assignElementsToDxdt(cim.e_omega_ref, dy, index);
     ::_shared_::_serialize_::assignElementsToDxdt(cim.omega_ref_dot, dy, index);
@@ -396,12 +399,18 @@ void mrac_geometric::compute_translational_control_in_I()
                                    - MASS * G * e3_basis                        // Weight Dynamic inversion term
                                    - aim.Fa_I;                                  // Aerodynamic inversion term
 
-    // Temp regressor
-    cim.outer_loop_regressor.setZero();
+    // Outerloop regressor
+    cim.outer_loop_regressor << G;
                                    
     // Compute the augmented regressor vector
     cim.augmented_outer_loop_regressor << cim.mu_tran_baseline,
 										  cim.outer_loop_regressor;
+
+    // Comptue the regressor vector for the DCM terms (aerodynamics)      
+    cim.outer_loop_regressor_DCM << aim.v_norm_sq * (aim.cd_lw + aim.cd_up),
+                                    aim.v_norm_sq * (aim.cd_lt + aim.cd_rt),
+                                    aim.v_norm_sq * (aim.cl_lt + aim.cl_rt),
+                                    aim.v_norm_sq * (aim.cl_lw + aim.cl_lw);
 
     // Cache the transpose of the tracking error * P * B
 	Eigen::Matrix<double, 1, 3> e_transpose_p_b = cim.e_tran.transpose() * cip.P_tran * cip.B_tran;
@@ -432,6 +441,12 @@ void mrac_geometric::compute_translational_control_in_I()
 																				  e_transpose_p_b,
 																				  cip.sigma_Theta_translational,
 																				  csm.Theta_hat_tran);
+                                                                                  
+    cim.Theta1_hat_tran_dot = ::_shared_::_adaptive_laws_::AdaptiveLawDCMDeadZone(cip.Gamma_Theta1_tran,
+                                                                                  cim.dead_zone_value_translational,
+                                                                                  cim.outer_loop_regressor_DCM,
+                                                                                  e_transpose_p_b,
+                                                                                  aim.Rwj * cim.Rji);
 
     // Projection operator - Ball
     // Projection operator K_hat_x
@@ -464,10 +479,21 @@ void mrac_geometric::compute_translational_control_in_I()
     cim.Theta_hat_tran_dot = proj_op_output_Theta_hat_translational.projected_matrix;
     cim.proj_op_activated_Theta_hat_translational = proj_op_output_Theta_hat_translational.projection_operator_activated;
 
+    // Projection operator Theta1_hat
+    ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(csm.Theta1_hat_tran)> proj_op_output_Theta1_hat_translational =
+        ::_shared_::_projection_operator_::_ball_::projectionMatrix(csm.Theta1_hat_tran,
+                                                                    cim.Theta1_hat_tran_dot,
+                                                                    cip.projection_x_max_Theta_translational,
+                                                                    cip.projection_epsilon_Theta_translational);
+
+    cim.Theta1_hat_tran_dot = proj_op_output_Theta1_hat_translational.projected_matrix;
+    cim.proj_op_activated_Theta1_hat_translational = proj_op_output_Theta1_hat_translational.projection_operator_activated;
+
     // Adaptive control law
     cim.mu_tran_adaptive << csm.K_hat_x_tran.transpose() * cim.x_tran
                           + csm.K_hat_r_tran.transpose() * cim.r_cmd_tran;
-                          - csm.Theta_hat_tran.transpose() * cim.augmented_outer_loop_regressor;
+                          - csm.Theta_hat_tran.transpose() * cim.augmented_outer_loop_regressor
+                          - csm.Theta1_hat_tran.transpose() * cim.outer_loop_regressor_DCM;
 
     // Compute with the dynamic inversion without aerodynamics
     cim.mu_tran_I << cim.mu_tran_baseline + cim.mu_tran_adaptive;
@@ -718,8 +744,14 @@ void mrac_geometric::compute_rotational_control()
                                                  + fft                          // Feedforward term
                                                  - aim.Ma_J;                    // Aerodynamic inversion term
 
-    // Temp regressor
-    cim.inner_loop_regressor.setZero();
+    // Innerloop regressor
+    cim.inner_loop_regressor << cim.omega(1) * cim.omega(2),
+                                cim.omega(0) * cim.omega(2),
+                                cim.omega(0) * cim.omega(1),
+                                aim.v_norm_sq * (aim.cm_lt + aim.cm_rt),
+                                aim.v_norm_sq * (aim.cm_up + aim.cm_lw),
+                                aim.v_norm_sq * sin(aim.beta_com) * (aim.cd_lw + aim.cd_up),
+                                aim.v_norm_sq * cos(aim.beta_com) * (aim.cl_rt + aim.cl_rt) + sin(aim.beta_com) * (aim.cd_lt + aim.cd_rt);
 
     // Compute the augmented regressor vector
     cim.augmented_inner_loop_regressor << cim.tau_rot_baseline, cim.inner_loop_regressor;
@@ -900,7 +932,7 @@ void mrac_geometric::compute_aerodynamics()
 
     aim.Ma_J(0) = DYN_PRESS_COEFF_S * LY_S * aim.v_norm_sq * (aim.cm_rt + aim.cm_lt) + aim.torq_Fa(0);
     aim.Ma_J(1) = DYN_PRESS_COEFF_W * LX * aim.v_norm_sq * (aim.cm_up + aim.cm_lw) + aim.torq_Fa(1);
-    aim.Ma_J(2) = 0.0 + aim.torq_Fa(2);
+    aim.Ma_J(2) = 0.0 + aim.torq_Fa(2);    // Used in the baseline as inversion term 
 
 }
 
@@ -1063,6 +1095,7 @@ void mrac_geometric::ConfigureHeaders()
         << "proj_op_activated_K_hat_x_translational [-], "
         << "proj_op_activated_K_hat_r_translational [-], "
         << "proj_op_activated_Theta_hat_translational [-], "
+        << "proj_op_activated_Theta1_hat_translational [-], "
         << "proj_op_activated_K_hat_x_rotational [-], "
         << "proj_op_activated_K_hat_r_rotational [-], "
         << "proj_op_activated_Theta_hat_rotational [-], "
@@ -1075,6 +1108,7 @@ void mrac_geometric::ConfigureHeaders()
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_x_translational", csm.K_hat_x_tran, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_r_translational", csm.K_hat_r_tran, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "Theta_hat_translational", csm.Theta_hat_tran, "[-]");
+        ::_shared_::_serialize_::generateMatrixHeaders(oss, "Theta1_hat_translational", csm.Theta1_hat_tran, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_x_rotational", csm.K_hat_x_rot, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_r_rotational", csm.K_hat_r_rot, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "Theta_hat_rotational", csm.Theta_hat_rot, "[-]");    
@@ -1215,6 +1249,7 @@ void mrac_geometric::LogData()
         << cim.proj_op_activated_K_hat_x_translational << ", "
         << cim.proj_op_activated_K_hat_r_translational << ", "
         << cim.proj_op_activated_Theta_hat_translational << ", "
+        << cim.proj_op_activated_Theta1_hat_translational << ", "
         << cim.proj_op_activated_K_hat_x_rotational << ", "
         << cim.proj_op_activated_K_hat_r_rotational << ", "
         << cim.proj_op_activated_Theta_hat_rotational << ", "
@@ -1227,6 +1262,7 @@ void mrac_geometric::LogData()
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_x_tran);
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_r_tran);
         ::_shared_::_serialize_::appendEigenData(oss, csm.Theta_hat_tran);
+        ::_shared_::_serialize_::appendEigenData(oss, csm.Theta1_hat_tran);
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_x_rot);
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_r_rot);
         ::_shared_::_serialize_::appendEigenData(oss, csm.Theta_hat_rot);

@@ -44,17 +44,32 @@ namespace _adaptive_laws_
 {
 
   // Classical MRAC Adaptive Laws.
+  // See matlab-scripts/regressor-vector-computation/MRAC_for_DCMs_in_the_Outer_Loop.pdf for the theory
   template <typename Der1, typename Der2, typename Der3>
   inline auto AdaptiveLawClassical(const Der1& Gamma,
-                                  const Der2& pi_vec,
-                                  const Der3& eTPB)
+                                   const Der2& pi_vec,
+                                   const Der3& eTPB)
   {
     // Adaptive law
     auto K_hat_dot = Gamma * pi_vec * eTPB;
 
     // Return the derivative of the adaptive gain
     return K_hat_dot;
-  }                                  
+  }
+
+  // Classical MRAC Adaptive Law for DCMs. R is a direction-cosine-matrix
+  template <typename Der1, typename Der2, typename Der3, typename Der4>
+  inline auto AdaptiveLawDCMClassical(const Der1& Gamma,
+                                      const Der2& pi_vec,
+                                      const Der3& eTPB,
+                                      const Der4& R)
+  {
+    // Adaptive law
+    auto K_hat_dot = Gamma * pi_vec * eTPB * R;
+
+    // Return the derivative of the adaptive gain
+    return K_hat_dot;
+  }                                      
 
 
   // Robust MRAC - Adaptive law formula equipped with the dead-zone modification and e-modificiation
@@ -87,6 +102,24 @@ namespace _adaptive_laws_
 
     // Compute the adaptive law update with deadzone
     auto K_hat_dot = Gamma * dead_zone_value * (pi_vec * eTPB);
+
+    // Return the derivative of the adaptive gain
+    return K_hat_dot;
+  }
+
+  // Robust MRAC - Adaptive law formula equipped with only the dead-zone modification (no e-modification) for DCM matrices.
+  // See also classical implementation of the law above.
+  // For reference: E. Lavretsky, K. Wise, "Robust and Adaptive Control", Springer 2013, Sec. 11.2.1
+  template <typename Der1, typename Der2, typename Der3, typename Der4>
+  inline auto AdaptiveLawDCMDeadZone(const Der1& Gamma,
+                                     const double dead_zone_value,
+                                     const Der2& pi_vec,
+                                     const Der3& eTPB,
+                                     const Der4& R) 
+  {
+
+    // Compute the adaptive law update with deadzone
+    auto K_hat_dot = Gamma * dead_zone_value * (pi_vec * eTPB * R);
 
     // Return the derivative of the adaptive gain
     return K_hat_dot;

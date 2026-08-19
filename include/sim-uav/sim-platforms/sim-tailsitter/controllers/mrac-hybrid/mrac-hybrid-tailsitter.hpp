@@ -51,7 +51,7 @@ namespace _mrac_hybrid_
 {
 
 // Define the number of states in the boost array for integration
-constexpr int NSI = 244;
+constexpr int NSI = 178;
 
 // -------------------------------------------------------------------------------------------------------------------- //
 // CONTROLLER STRUCTURES
@@ -67,7 +67,8 @@ struct controller_internal_parameters {
   Eigen::Matrix<double, 3, 3> Kd_tran;            // Derivative Gains for the translational control
   Eigen::Matrix<double, 6, 6> Gamma_x_tran;       // Adaptive Gains for the translational control
   Eigen::Matrix<double, 3, 3> Gamma_r_tran;       // Adaptive Gains for the translational control
-  Eigen::Matrix<double, 30, 30> Gamma_Theta_tran; // Adaptive Gains for the translational control
+  Eigen::Matrix<double, 4, 4> Gamma_Theta_tran;   // Adaptive Gains for the translational control
+  Eigen::Matrix<double, 4, 4> Gamma_Theta1_tran;  // Adaptive Gains for the translational control
   Eigen::Matrix<double, 6, 6> Q_tran;          	  // Lyapunov weighting matrix
   Eigen::Matrix<double, 6, 6> P_tran;           	// Solution matrix to continuous Lyapunov equation
   Eigen::Matrix<double, 6, 6> A_tran;           	// Translational system matrix
@@ -135,7 +136,8 @@ struct controller_integrated_state_members {
   Eigen::Matrix<double, 6, 1> x_tran_ref;				      // Reference model in I
   Eigen::Matrix<double, 6, 3> K_hat_x_tran;   			  // Translational Adaptive gains for x
   Eigen::Matrix<double, 3, 3> K_hat_r_tran;	    		  // Translational Adaptive gains for r
-  Eigen::Matrix<double, 30, 3> Theta_hat_tran;	    	// Translational Adaptive gains for Theta
+  Eigen::Matrix<double, 4, 3> Theta_hat_tran;	    	  // Translational Adaptive gains for Theta
+  Eigen::Matrix<double, 4, 3> Theta1_hat_tran;	    	// Translational Adaptive gains for Theta1
 
   Eigen::Matrix<double, 2, 1> state_mu_x_filter;          // States for filter
   Eigen::Matrix<double, 2, 1> state_mu_y_filter;          // States for filter
@@ -173,13 +175,16 @@ struct controller_internal_members {
   Eigen::Matrix<double, 3, 1> e_tran_vel;                        // Translational error in velocity
   Eigen::Matrix<double, 6, 3> K_hat_x_tran_dot;				           // Adaptive gain to be integrated
   Eigen::Matrix<double, 3, 3> K_hat_r_tran_dot;				           // Adaptive gain to be integrated
-  Eigen::Matrix<double, 30, 3> Theta_hat_tran_dot;			         // Adaptive gain to be integrated
-  Eigen::Matrix<double, 27, 1> outer_loop_regressor;			       // Outer loop regressor
-  Eigen::Matrix<double, 30, 1> augmented_outer_loop_regressor;   // Outer loop augmented regressor
+  Eigen::Matrix<double, 4, 3> Theta_hat_tran_dot; 			         // Adaptive gain to be integrated
+  Eigen::Matrix<double, 4, 3> Theta1_hat_tran_dot;			         // Adaptive gain to be integrated
+  Eigen::Matrix<double, 1, 1> outer_loop_regressor;			         // Outer loop regressor
+  Eigen::Matrix<double, 4, 1> augmented_outer_loop_regressor;    // Outer loop augmented regressor
+  Eigen::Matrix<double, 4, 1> outer_loop_regressor_DCM;          // Outer loop regressor for the DCM terms (aerodynamics)
   double dead_zone_value_translational;						               // Dead zone val - OL
   bool proj_op_activated_K_hat_x_translational;				           // Projection activation boolean - OL - K_hat_x
   bool proj_op_activated_K_hat_r_translational;				           // Projection activation boolean - OL - K_hat_r
   bool proj_op_activated_Theta_hat_translational;				         // Projection activation boolean - OL - Theta_hat
+  bool proj_op_activated_Theta1_hat_translational;               // Projection activation boolean - OL - Theta1_hat
   Eigen::Matrix<double, 3, 1> mu_tran_baseline;                  // Baseline control input
   Eigen::Matrix<double, 3, 1> mu_tran_adaptive;                  // Adaptive control input
   Eigen::Matrix<double, 3, 1> mu_tran_I;                         // Virtual control action in the inertial frame
