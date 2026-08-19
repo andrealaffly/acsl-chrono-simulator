@@ -595,7 +595,7 @@ void simtailsitter::ConfigureTAILSITTERAerodynamics()
     // with the 3D print toolbox on the acutal exported model .obj file.
     GetUAVChassisAerodynamics().chassis_body_surface_aera = 3.2126;
 
-    // ---------------------------------------------------------------------------------- CONFIGURE THE WINGS
+    // ------------------------------------------------------------------------------------ COMMON PARAMETERS
     // Create a vector for the aerodynamic surfaces
     std::vector<::_acsl_::_uav_::aerodynamicsurfacestruct> aerofoils;
 
@@ -606,6 +606,7 @@ void simtailsitter::ConfigureTAILSITTERAerodynamics()
     // Set the air density
     aerofoil.air_density = 1.228;
 
+    // ---------------------------------------------------------------------------------- CONFIGURE THE WINGS
     // Now, we set the common properties for the wings - the span and chord are the same.
     // q_relative is the relative orientation of the aerodynamic surface with respect to the body NED frame.
     // Set the relative direction vectors for lift and drag forces with respect to the body NED frame
@@ -633,6 +634,39 @@ void simtailsitter::ConfigureTAILSITTERAerodynamics()
     aerofoil.p2 = chrono::ChVector3d(-0.22251642,-0.75 + 0.00011867,0.01801629);
 
     // Add the wing to the vector of aerofoils
+    aerofoils.push_back(aerofoil);
+
+    // ---------------------------------------------------------------------------- CONFIGURE THE STABILIZERS
+    // Now, we set the common properties for the stablizers - the span and chord are the same.
+    // q_relative is the relative orientation of the aerodynamic surface with respect to the body NED frame.
+    // Set the relative direction vectors for lift and drag forces with respect to the body NED frame
+    //   - Lift acts along -X (negative body X axis).
+    //   - Drag acts along +Z (positive body Z axis).
+    // Set the number of aero centers, it's the same for both stabilizers as we want it to be symmetrical
+    aerofoil.aerofoil_span = 0.10516;
+    aerofoil.aerofoil_chord = 0.05;
+    aerofoil.num_of_aero_centers = 5;
+
+    // Right Stabilizer
+    aerofoil.name = "right_stabilizer";
+    aerofoil.p1 = chrono::ChVector3d(0.21012, 0.47, 0.10782);
+    aerofoil.p2 = chrono::ChVector3d(-0.21064, 0.47, 0.10782);
+    aerofoil.q_relative = chrono::QuatFromAngleY(chrono::CH_PI_2) *  chrono::QuatFromAngleX(chrono::CH_PI_2);
+    aerofoil.lift_force_relative_vector = chrono::ChVector3d(0, 1, 0);
+    aerofoil.drag_force_relative_vector = chrono::ChVector3d(0, 0, 1);
+
+    // Add the stabilizer to the vector of aerofoils
+    aerofoils.push_back(aerofoil);
+
+    // Left Stabilizer
+    aerofoil.name = "left_stabilizer";
+    aerofoil.p1 = chrono::ChVector3d(0.21012, -0.4475, 0.10782);
+    aerofoil.p2 = chrono::ChVector3d(-0.21064, -0.4475, 0.10782);
+    aerofoil.q_relative = chrono::QuatFromAngleY(chrono::CH_PI_2) *  chrono::QuatFromAngleX(-chrono::CH_PI_2);
+    aerofoil.lift_force_relative_vector = chrono::ChVector3d(0, -1, 0);
+    aerofoil.drag_force_relative_vector = chrono::ChVector3d(0, 0, 1);
+
+    // Add the stabilizer to the vector of aerofoils
     aerofoils.push_back(aerofoil);
 
     // Finally configure the UAV aerodynamics with the wings we have set up
@@ -745,25 +779,25 @@ void simtailsitter::ConfigureTAILSITTERPayload()
 
     auto sphereBody = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
-        28294.2,
+        4.435 * 7073.55,
         sph_mat
     );
 
     auto sphereBody1 = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
-        28294.2,
+        4.425 * 7073.55,
         sph_mat
     );
 
     auto sphereBody2 = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
-        28294.2,
+        4.415 * 7073.55,
         sph_mat
     );
 
     auto sphereBody3 = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
-        28294.2,
+        3.105 * 7073.55,
         sph_mat
     );
 
@@ -771,16 +805,16 @@ void simtailsitter::ConfigureTAILSITTERPayload()
                                                                                               0.138257774369255,
                                                                                               0.0490871680500573)));
 
-    sphereBody1->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-0.820174613366277 + 0.02,
-                                                                                              0.138257774369255 + 0.02,
+    sphereBody1->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-0.820174613366277 + 0.025,
+                                                                                              0.138257774369255 + 0.025,
                                                                                               0.0490871680500573)));
 
-    sphereBody2->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-0.820174613366277 - 0.02,
-                                                                                              0.138257774369255 - 0.02,
+    sphereBody2->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-0.820174613366277 - 0.025,
+                                                                                              0.138257774369255 - 0.025,
                                                                                               0.0490871680500573)));
 
-    sphereBody3->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-0.820174613366277 + 0.02,
-                                                                                              0.138257774369255 - 0.02,
+    sphereBody3->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-0.820174613366277 + 0.025,
+                                                                                              0.138257774369255 - 0.025,
                                                                                               0.0490871680500573)));
 
 
@@ -801,10 +835,10 @@ void simtailsitter::ConfigureTAILSITTERPayload()
         chrono::GetChronoDataFile("textures/pinkwhite.png")
     );
 
-    this->getPhysicsSystem().Add(sphereBody);
-    this->getPhysicsSystem().Add(sphereBody1);
-    this->getPhysicsSystem().Add(sphereBody2);
-    this->getPhysicsSystem().Add(sphereBody3);
+    // this->getPhysicsSystem().Add(sphereBody);
+    // this->getPhysicsSystem().Add(sphereBody1);
+    // this->getPhysicsSystem().Add(sphereBody2);
+    // this->getPhysicsSystem().Add(sphereBody3);
 
 
 }

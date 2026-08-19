@@ -77,7 +77,7 @@ render:
   # Show the chassis aerodynamic drag frame
   render_chassis_drag_frame: false
   # Show the chassis aerodynamic wing frames
-  render_wing_aero_frames: false
+  render_wing_aero_frames: true
 
   # Rendering effects ----------------------------------------------
   # Toggle shadow rendering (GPU-intensive)

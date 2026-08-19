@@ -50,7 +50,7 @@ function s = fmtnum(x)
         return
     end
     % print with 4 decimals then strip trailing zeros/dot
-    s = sprintf('%.4f', x);
+    s = sprintf('%.6f', x);
     % remove trailing zeros and possible trailing dot
     s = regexprep(s, '0+$', '');
     s = regexprep(s, '\.$', '');

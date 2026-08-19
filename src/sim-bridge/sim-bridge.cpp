@@ -843,7 +843,7 @@ void simbridge::UpdatePhysicsSystem()
             << _shared_::_conversions_::rad2deg(m_state.eul.x()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul.y()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul.z()) << "\n" << color_reset
-            << color_label << "UAV ROTATIONa IN BIPLANE FRAME: " << color_value
+            << color_label << "UAV ROTATION IN BIPLANE FRAME: " << color_value
             << _shared_::_conversions_::rad2deg(m_state.eul_bp.x()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul_bp.y()) << ", "
             << _shared_::_conversions_::rad2deg(m_state.eul_bp.z()) << "\n" << color_reset

@@ -79,7 +79,8 @@ void mrac_geometric::read_params(const std::string& jsonFile)
     cip.Kd_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["KD_translational"], 3, 3);
     cip.Gamma_x_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_x_translational"], 6, 6);
 	cip.Gamma_r_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_r_translational"], 3, 3);
-	cip.Gamma_Theta_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_Theta_translational"], 30, 30);
+	cip.Gamma_Theta_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_Theta_translational"], 4, 4);
+    cip.Gamma_Theta1_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Gamma_Theta1_translational"], 4, 4);
 	cip.Q_tran = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["TRANSLATIONAL"]["Q_translational"], 6, 6);
 
     // Rotational parameters
@@ -94,6 +95,7 @@ void mrac_geometric::read_params(const std::string& jsonFile)
 	cip.Q_rot = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["ROTATIONAL"]["Q_rotational"], 3, 3);
 
     // Differentiator matrices
+    cip.use_filter = j["FILTERS"]["use_filter"];
     cip.A_filter_mu = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["FILTERS"]["A_filter_mu"], 2, 2);
     cip.B_filter_mu = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["FILTERS"]["B_filter_mu"], 2, 1);
     cip.C_filter_mu = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["FILTERS"]["C_filter_mu"], 1, 2);
@@ -125,6 +127,34 @@ void mrac_geometric::read_params(const std::string& jsonFile)
 	cip.projection_epsilon_r_rotational = j["ROBUSTIFICATION"]["projection_epsilon_r_rotational"];
     cip.projection_x_max_Theta_rotational = j["ROBUSTIFICATION"]["projection_x_max_Theta_rotational"];
 	cip.projection_epsilon_Theta_rotational = j["ROBUSTIFICATION"]["projection_epsilon_Theta_rotational"];
+
+    // Adaptive differentiator gains and parameter matrices
+    dip.C_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["C_differentiator"], 3, 6);
+    dip.B_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["B_differentiator"], 6, 3);
+    dip.L_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["L_differentiator"], 6, 3);
+
+    dip.A_ref_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["A_ref_y_differentiator"], 6, 6);
+    dip.A_tran_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["A_tran_y_differentiator"], 6, 6);
+
+    dip.Gamma_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Gamma_y_differentiator"], 3, 3);
+    dip.Gamma_Theta_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Gamma_Theta_differentiator"], 3, 3);
+    dip.Gamma_g_y_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Gamma_g_y_differentiator"], 3, 3);
+
+    dip.projection_x_max_K_hat_y_diff = j["DIFFERENTIATOR"]["projection_x_max_K_hat_y_differentiator"];
+    dip.projection_epsilon_K_hat_y_diff = j["DIFFERENTIATOR"]["projection_epsilon_K_hat_y_differentiator"];
+    
+    dip.projection_x_max_Theta_hat_diff = j["DIFFERENTIATOR"]["projection_x_max_Theta_hat_differentiator"];
+    dip.projection_epsilon_Theta_hat_diff = j["DIFFERENTIATOR"]["projection_epsilon_Theta_hat_differentiator"];
+    
+    dip.projection_x_max_K_hat_g_y_diff = j["DIFFERENTIATOR"]["projection_x_max_K_hat_g_y_differentiator"];
+    dip.projection_epsilon_K_hat_g_y_diff = j["DIFFERENTIATOR"]["projection_epsilon_K_hat_g_y_differentiator"];
+
+    dip.lambda_bar_diff = j["DIFFERENTIATOR"]["lambda_bar_differentiator"];
+    dip.theta_bar_diff = j["DIFFERENTIATOR"]["theta_bar_differentiator"];
+
+    dip.K_ye_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["K_ye_differentiator"], 3, 3);
+    dip.Theta_e_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["Theta_e_differentiator"], 3, 3);
+    dip.K_gye_diff = ::_shared_::_deserialize_::jsonToScaledMatrixXd(j["DIFFERENTIATOR"]["K_gye_differentiator"], 3, 3);
 
 }
 
@@ -181,6 +211,15 @@ void mrac_geometric::init(){
 
 	// Solve the continuous Lyapunov eequation to compute P_rotational
 	cip.P_rot = ::_lyapunov_solver_::RealContinuousLyapunovEquation(cip.A_ref_rot, cip.Q_rot);
+
+    // Initiate the rk4 vector for the differentiator gain matrices
+    int index = 135;
+    ::_shared_::_serialize_::assignElementsToDxdt(dip.K_ye_diff, this->y, index);           // For VS 2L MRAD
+    ::_shared_::_serialize_::assignElementsToDxdt(dip.Theta_e_diff, this->y, index);        // For VS 2L MRAD
+    ::_shared_::_serialize_::assignElementsToDxdt(dip.K_gye_diff, this->y, index);          // For VS 2L MRAD
+
+    // DISPLAY A DEBUG MESSAGE
+    _message_::SIMULATOR_INFO("[SIMCTL]: INITIAL PARAMETERS COMPUTED FOR MRAD DIFFERENTIATOR");
 }
 
 // Update function for the controller
@@ -237,6 +276,22 @@ void mrac_geometric::update(double time,
 
     // 4. Assign the values from the integrator ------------------------------------
     assign_from_rk4();
+
+    // 5. Initialize the differentiator's estimated state vector -------------------
+    if(!dim.first_run_differentiator) {
+        // Initate the x_hat vector
+        dsm.x_hat_vs_2l_mrad << 0.0, 0.0, 0.0, 6.56683, -2.05528, -9.0455;
+        // dsm.x_hat_vs_2l_mrad << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
+        dim.x_hat_vs_2l_mrad_dot << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
+
+        // Initiate the corresponding rk4 vector
+        int index = 165; // For VS 2L MRAD states
+        ::_shared_::_serialize_::assignElementsToDxdt(dsm.x_hat_vs_2l_mrad, this->y, index);
+        _message_::SIMULATOR_INFO("[SIMCTL]: INITIAL X HAT VECTOR SET FOR DIFFERENTIATOR");
+
+        // Set the initialization condition to true
+        dim.first_run_differentiator = true;
+    }
 }
 
 // Function to assign elements from the rk4 integrator
@@ -258,12 +313,21 @@ void mrac_geometric::assign_from_rk4()
     ::_shared_::_deserialize_::assignElementsToMembers(csm.K_hat_x_tran, y, index);
 	::_shared_::_deserialize_::assignElementsToMembers(csm.K_hat_r_tran, y, index);
 	::_shared_::_deserialize_::assignElementsToMembers(csm.Theta_hat_tran, y, index);
+    ::_shared_::_deserialize_::assignElementsToMembers(csm.Theta1_hat_tran, y, index);
 
     ::_shared_::_deserialize_::assignElementsToMembers(csm.e_omega_ref_I, y, index);
     ::_shared_::_deserialize_::assignElementsToMembers(csm.omega_ref, y, index);
 	::_shared_::_deserialize_::assignElementsToMembers(csm.K_hat_x_rot, y, index);
 	::_shared_::_deserialize_::assignElementsToMembers(csm.K_hat_r_rot, y, index);
 	::_shared_::_deserialize_::assignElementsToMembers(csm.Theta_hat_rot, y, index);
+
+    //------------ assign elements of the differentiator after integration  ------------//
+    ::_shared_::_deserialize_::assignElementsToMembers(dsm.K_hat_y_vs_2l_mrad, y, index);
+    ::_shared_::_deserialize_::assignElementsToMembers(dsm.Theta_hat_vs_2l_mrad, y, index);
+    ::_shared_::_deserialize_::assignElementsToMembers(dsm.K_hat_g_y_vs_2l_mrad, y, index);
+    ::_shared_::_deserialize_::assignElementsToMembers(dsm.int_mu_tran_I, y, index);
+    ::_shared_::_deserialize_::assignElementsToMembers(dsm.x_hat_vs_2l_mrad, y, index);
+    ::_shared_::_deserialize_::assignElementsToMembers(dsm.eta_vs_2l_mrad, y, index);  
 }
 
 // Model function for integration
@@ -285,6 +349,7 @@ void mrac_geometric::model(const _control_::rk4_array<double, NSI> &y, _control_
     ::_shared_::_serialize_::assignElementsToDxdt(cim.K_hat_x_tran_dot, dy, index);
 	::_shared_::_serialize_::assignElementsToDxdt(cim.K_hat_r_tran_dot, dy, index);
 	::_shared_::_serialize_::assignElementsToDxdt(cim.Theta_hat_tran_dot, dy, index);
+    ::_shared_::_serialize_::assignElementsToDxdt(cim.Theta1_hat_tran_dot, dy, index);
 
     ::_shared_::_serialize_::assignElementsToDxdt(cim.e_omega_ref, dy, index);
     ::_shared_::_serialize_::assignElementsToDxdt(cim.omega_ref_dot, dy, index);
@@ -292,6 +357,15 @@ void mrac_geometric::model(const _control_::rk4_array<double, NSI> &y, _control_
 	::_shared_::_serialize_::assignElementsToDxdt(cim.K_hat_r_rot_dot, dy, index);
 	::_shared_::_serialize_::assignElementsToDxdt(cim.Theta_hat_rot_dot, dy, index);
 
+    //------------ Fill up the dy for integration for the differentiator ------------//
+    ::_shared_::_serialize_::assignElementsToDxdt(dim.K_hat_y_vs_2l_mrad_dot, dy, index);
+    ::_shared_::_serialize_::assignElementsToDxdt(dim.Theta_hat_vs_2l_mrad_dot, dy, index);
+    ::_shared_::_serialize_::assignElementsToDxdt(dim.K_hat_g_y_vs_2l_mrad_dot, dy, index);
+    ::_shared_::_serialize_::assignElementsToDxdt(cim.mu_tran_I, dy, index);
+    ::_shared_::_serialize_::assignElementsToDxdt(dim.x_hat_vs_2l_mrad_dot, dy, index);
+    ::_shared_::_serialize_::assignElementsToDxdt(dim.eta_vs_2l_mrad_dot, dy, index);
+
+    
 }
 
 
@@ -322,14 +396,21 @@ void mrac_geometric::compute_translational_control_in_I()
                                    - cip.Kd_tran * cim.e_tran_vel               // Derivative term
                                    - cip.Ki_tran * csm.e_tran_pos_I             // Integral term
                                    + cim.x_tran_ref_dot.tail<3>() )             // Feedforward term
-                                   - MASS * G * e3_basis;                       // Weight Dynamic inversion term
+                                   - MASS * G * e3_basis                        // Weight Dynamic inversion term
+                                   - aim.Fa_I;                                  // Aerodynamic inversion term
 
-    // Temp regressor
-    cim.outer_loop_regressor.setZero();
+    // Outerloop regressor
+    cim.outer_loop_regressor << G;
                                    
     // Compute the augmented regressor vector
     cim.augmented_outer_loop_regressor << cim.mu_tran_baseline,
 										  cim.outer_loop_regressor;
+
+    // Comptue the regressor vector for the DCM terms (aerodynamics)      
+    cim.outer_loop_regressor_DCM << aim.v_norm_sq * (aim.cd_lw + aim.cd_up),
+                                    aim.v_norm_sq * (aim.cd_lt + aim.cd_rt),
+                                    aim.v_norm_sq * (aim.cl_lt + aim.cl_rt),
+                                    aim.v_norm_sq * (aim.cl_lw + aim.cl_lw);
 
     // Cache the transpose of the tracking error * P * B
 	Eigen::Matrix<double, 1, 3> e_transpose_p_b = cim.e_tran.transpose() * cip.P_tran * cip.B_tran;
@@ -360,6 +441,12 @@ void mrac_geometric::compute_translational_control_in_I()
 																				  e_transpose_p_b,
 																				  cip.sigma_Theta_translational,
 																				  csm.Theta_hat_tran);
+                                                                                  
+    cim.Theta1_hat_tran_dot = ::_shared_::_adaptive_laws_::AdaptiveLawDCMDeadZone(cip.Gamma_Theta1_tran,
+                                                                                  cim.dead_zone_value_translational,
+                                                                                  cim.outer_loop_regressor_DCM,
+                                                                                  e_transpose_p_b,
+                                                                                  aim.Rwj * cim.Rji);
 
     // Projection operator - Ball
     // Projection operator K_hat_x
@@ -392,10 +479,21 @@ void mrac_geometric::compute_translational_control_in_I()
     cim.Theta_hat_tran_dot = proj_op_output_Theta_hat_translational.projected_matrix;
     cim.proj_op_activated_Theta_hat_translational = proj_op_output_Theta_hat_translational.projection_operator_activated;
 
+    // Projection operator Theta1_hat
+    ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(csm.Theta1_hat_tran)> proj_op_output_Theta1_hat_translational =
+        ::_shared_::_projection_operator_::_ball_::projectionMatrix(csm.Theta1_hat_tran,
+                                                                    cim.Theta1_hat_tran_dot,
+                                                                    cip.projection_x_max_Theta_translational,
+                                                                    cip.projection_epsilon_Theta_translational);
+
+    cim.Theta1_hat_tran_dot = proj_op_output_Theta1_hat_translational.projected_matrix;
+    cim.proj_op_activated_Theta1_hat_translational = proj_op_output_Theta1_hat_translational.projection_operator_activated;
+
     // Adaptive control law
     cim.mu_tran_adaptive << csm.K_hat_x_tran.transpose() * cim.x_tran
                           + csm.K_hat_r_tran.transpose() * cim.r_cmd_tran;
-                          - csm.Theta_hat_tran.transpose() * cim.augmented_outer_loop_regressor;
+                          - csm.Theta_hat_tran.transpose() * cim.augmented_outer_loop_regressor
+                          - csm.Theta1_hat_tran.transpose() * cim.outer_loop_regressor_DCM;
 
     // Compute with the dynamic inversion without aerodynamics
     cim.mu_tran_I << cim.mu_tran_baseline + cim.mu_tran_adaptive;
@@ -404,6 +502,7 @@ void mrac_geometric::compute_translational_control_in_I()
 // Function to compute the outerloop translational control rate in I using the differentiator
 void mrac_geometric::compute_translational_control_rate()
 {
+    // Filter computations --------------------------------------------------------------
     // Compute the internal state for rate of change of mu
     cim.internal_state_mu_x_filter << cip.A_filter_mu * csm.state_mu_x_filter
                                     + cip.B_filter_mu * cim.mu_tran_I(0);
@@ -414,10 +513,113 @@ void mrac_geometric::compute_translational_control_rate()
     cim.internal_state_mu_z_filter << cip.A_filter_mu * csm.state_mu_z_filter
                                     + cip.B_filter_mu * cim.mu_tran_I(2);
 
+    // MRAD 2L VS computations ----------------------------------------------------------
+    // Assign the total z_measured vector (use actual state vector)
+    dim.z_measured_vs_2l_mrad << dsm.int_mu_tran_I(0),
+                                 dsm.int_mu_tran_I(1),
+                                 dsm.int_mu_tran_I(2),
+                                 cim.mu_tran_I(0),
+                                 cim.mu_tran_I(1),
+                                 cim.mu_tran_I(2);
+
+    // Assign the measured output (use actual state vector)
+    dim.y_measured_vs_2l_mrad << dip.C_diff * dim.z_measured_vs_2l_mrad;
+
+    // Compute the observation error
+    dim.obs_error_vs_2l_mrad << dim.y_measured_vs_2l_mrad - dip.C_diff * dsm.x_hat_vs_2l_mrad;
+
+    // Compute the transient error
+    dim.nu_vs_2l_mrad << dim.z_measured_vs_2l_mrad - dsm.x_hat_vs_2l_mrad - dsm.eta_vs_2l_mrad;
+
+    // Regressor vector for the observer - It is the signal itself as we assume some noise in it
+    dim.Phi_y_vs_2l_mrad << cim.mu_tran_I;
+
+    // Compute rho Eq. (40)
+    dim.rho_vs_2l_mrad = dip.lambda_bar_diff * dip.theta_bar_diff * dim.Phi_y_vs_2l_mrad.norm();
+
+    // Compute beta Eq. (40)
+    const Eigen::Vector3d nu_y_vs_2l_mrad = dip.C_diff * dim.nu_vs_2l_mrad;
+
+    const double nu_y_norm_vs_2l_mrad = nu_y_vs_2l_mrad.norm();
+
+    if (nu_y_norm_vs_2l_mrad <= 1e-6) { 
+        dim.beta_vs_2l_mrad.setZero();
+    }
+    else {
+        dim.beta_vs_2l_mrad = 0.002 * dim.rho_vs_2l_mrad * (nu_y_vs_2l_mrad / nu_y_norm_vs_2l_mrad);
+    }
+
+    // Compute the virtual control input for the differentitator
+    dim.u_vs_2l_mrad << cim.mu_tran_I - dsm.K_hat_y_vs_2l_mrad.transpose() * dim.y_measured_vs_2l_mrad 
+                                      + dsm.Theta_hat_vs_2l_mrad.transpose() * dim.Phi_y_vs_2l_mrad
+                                      - dsm.K_hat_g_y_vs_2l_mrad.transpose() * dim.obs_error_vs_2l_mrad
+                                      + dim.beta_vs_2l_mrad;
+
+    // Compute the estimated state to be integrated
+    dim.x_hat_vs_2l_mrad_dot << dip.A_ref_y_diff * dsm.x_hat_vs_2l_mrad + dip.B_diff * dim.u_vs_2l_mrad
+                              + dip.L_diff * dip.C_diff * dim.nu_vs_2l_mrad;
+
+    // Compute the transient error model
+    dim.eta_vs_2l_mrad_dot << dip.A_tran_y_diff * dsm.eta_vs_2l_mrad;
+    
+    // Compute the derivative of the differentiator gains to be integrated
+    dim.K_hat_y_vs_2l_mrad_dot << -dip.Gamma_y_diff * dim.y_measured_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
+    dim.Theta_hat_vs_2l_mrad_dot << -dip.Gamma_Theta_diff * dim.Phi_y_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
+    dim.K_hat_g_y_vs_2l_mrad_dot << -dip.Gamma_g_y_diff * dim.obs_error_vs_2l_mrad * dim.nu_vs_2l_mrad.transpose() * dip.C_diff.transpose();
+
+    // Projection operator - Ball - NO boolean to switch off projection. It is always on.
+
+    // Projection operator K_hat_y_vs_2l_mrad
+    ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(dsm.K_hat_y_vs_2l_mrad)> proj_op_output_K_hat_y_vs_2l_mrad = 
+        ::_shared_::_projection_operator_::_ball_::projectionMatrix(dsm.K_hat_y_vs_2l_mrad,
+                                                                    dim.K_hat_y_vs_2l_mrad_dot,
+                                                                    dip.projection_x_max_K_hat_y_diff,
+                                                                    dip.projection_epsilon_K_hat_y_diff);
+                                                                    
+    dim.K_hat_y_vs_2l_mrad_dot = proj_op_output_K_hat_y_vs_2l_mrad.projected_matrix;
+    dim.proj_op_activated_K_hat_y_vs_2l_mrad = proj_op_output_K_hat_y_vs_2l_mrad.projection_operator_activated;
+
+    // Projection operator Theta_hat_vs_2l_mrad
+    ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(dsm.Theta_hat_vs_2l_mrad)> proj_op_output_Theta_hat_vs_2l_mrad = 
+        ::_shared_::_projection_operator_::_ball_::projectionMatrix(dsm.Theta_hat_vs_2l_mrad,
+                                                                    dim.Theta_hat_vs_2l_mrad_dot,
+                                                                    dip.projection_x_max_Theta_hat_diff,
+                                                                    dip.projection_epsilon_Theta_hat_diff);
+
+    dim.Theta_hat_vs_2l_mrad_dot = proj_op_output_Theta_hat_vs_2l_mrad.projected_matrix;
+    dim.proj_op_activated_Theta_hat_vs_2l_mrad = proj_op_output_Theta_hat_vs_2l_mrad.projection_operator_activated;
+
+    // Projection operator K_hat_g_y_mrad
+    ::_shared_::_projection_operator_::MatrixProjectionOutput<decltype(dsm.K_hat_g_y_vs_2l_mrad)> proj_op_output_K_hat_g_y_vs_2l_mrad = 
+        ::_shared_::_projection_operator_::_ball_::projectionMatrix(dsm.K_hat_g_y_vs_2l_mrad,
+                                                                    dim.K_hat_g_y_vs_2l_mrad_dot,
+                                                                    dip.projection_x_max_K_hat_g_y_diff,
+                                                                    dip.projection_epsilon_K_hat_g_y_diff);
+
+    dim.K_hat_g_y_vs_2l_mrad_dot = proj_op_output_K_hat_g_y_vs_2l_mrad.projected_matrix;
+    dim.proj_op_activated_K_hat_g_y_vs_2l_mrad = proj_op_output_K_hat_g_y_vs_2l_mrad.projection_operator_activated; // Assign the measured output (use actual state vector)
+
+
     // Compute the rate of change of the translational virtual control input
-    cim.mu_tran_I_dot(0) = cip.C_filter_mu * csm.state_mu_x_filter;
-    cim.mu_tran_I_dot(1) = cip.C_filter_mu * csm.state_mu_y_filter;
-    cim.mu_tran_I_dot(2) = cip.C_filter_mu * csm.state_mu_z_filter;
+    if (cip.use_filter) {
+        cim.mu_tran_I_dot(0) = cip.C_filter_mu * csm.state_mu_x_filter;
+        cim.mu_tran_I_dot(1) = cip.C_filter_mu * csm.state_mu_y_filter;
+        cim.mu_tran_I_dot(2) = cip.C_filter_mu * csm.state_mu_z_filter;
+    }
+    else {
+        if (cim.t < 4.0) {
+            cim.mu_tran_I_dot(0) = cip.C_filter_mu * csm.state_mu_x_filter;
+            cim.mu_tran_I_dot(1) = cip.C_filter_mu * csm.state_mu_y_filter;
+            cim.mu_tran_I_dot(2) = cip.C_filter_mu * csm.state_mu_z_filter;
+        }
+        else {
+            cim.mu_tran_I_dot(0) = dim.x_hat_vs_2l_mrad_dot(3);
+            cim.mu_tran_I_dot(1) = dim.x_hat_vs_2l_mrad_dot(4);
+            cim.mu_tran_I_dot(2) = dim.x_hat_vs_2l_mrad_dot(5);
+        }
+        
+    }
+
 }
 
 // Compute the orientation commands and the desired total thrust
@@ -534,15 +736,22 @@ void mrac_geometric::compute_rotational_control()
 
     // Cache the feedforward term
     Eigen::Vector3d fft;
-    fft = inertia_matrix_q * ( cim.omega.cross(inertia_matrix_q * cim.omega) - cim.alpha_d );
+    fft = inertia_matrix_q * ( -1.0 * cim.alpha_d ) + cim.omega.cross(inertia_matrix_q * cim.omega);
     
     // Compute the baseline control input
     cim.tau_rot_baseline << inertia_matrix_q * ( - cip.Kp_att * cim.Xi_e        // Proportional term
                                                  - cip.Kd_att * cim.omega_e)    // Derivative term
-                                                 + fft;                         // Feedforward term
+                                                 + fft                          // Feedforward term
+                                                 - aim.Ma_J;                    // Aerodynamic inversion term
 
-    // Temp regressor
-    cim.inner_loop_regressor.setZero();
+    // Innerloop regressor
+    cim.inner_loop_regressor << cim.omega(1) * cim.omega(2),
+                                cim.omega(0) * cim.omega(2),
+                                cim.omega(0) * cim.omega(1),
+                                aim.v_norm_sq * (aim.cm_lt + aim.cm_rt),
+                                aim.v_norm_sq * (aim.cm_up + aim.cm_lw),
+                                aim.v_norm_sq * sin(aim.beta_com) * (aim.cd_lw + aim.cd_up),
+                                aim.v_norm_sq * cos(aim.beta_com) * (aim.cl_rt + aim.cl_rt) + sin(aim.beta_com) * (aim.cd_lt + aim.cd_rt);
 
     // Compute the augmented regressor vector
     cim.augmented_inner_loop_regressor << cim.tau_rot_baseline, cim.inner_loop_regressor;
@@ -637,11 +846,94 @@ void mrac_geometric::compute_normalized_thrusts()
     control_input(2) = ::_shared_::_compute_::evaluatePolynomial(thrust_polynomial_coeff_tailsitter, cim.Sat_Thrust(2));
     control_input(3) = ::_shared_::_compute_::evaluatePolynomial(thrust_polynomial_coeff_tailsitter, cim.Sat_Thrust(3));
 
-    std::cout << "T1: " << control_input(0) 
-              << "| T2: " << control_input(1)
-              << "| T3: " << control_input(2)
-              << "| T4: " << control_input(3) 
-              << std::endl;
+    // std::cout << "T1: " << control_input(0) 
+    //           << "| T2: " << control_input(1)
+    //           << "| T3: " << control_input(2)
+    //           << "| T4: " << control_input(3) 
+    //           << std::endl;
+}
+
+// Function to compute the aerodynamics
+void mrac_geometric::compute_aerodynamics() 
+{
+    // Compute the translational velocity in the body frame
+    aim.x_tran_vel_body << cim.Rij * cim.x_tran_vel;
+
+    // Compute the norm of the velocity
+    aim.v_norm_sq = aim.v_norm_sq = aim.x_tran_vel_body.squaredNorm();
+
+    // Compute the aerodynamic angles
+    aim.alpha_up = atan2(aim.x_tran_vel_body(0), -1.0 * (aim.x_tran_vel_body(2) - LY * cim.omega(0)) );
+    aim.alpha_lw = atan2(aim.x_tran_vel_body(0), -1.0 * (aim.x_tran_vel_body(2) + LY * cim.omega(0)) );
+    aim.alpha_rt = atan2(aim.x_tran_vel_body(1), 
+                        sqrt( 
+                                (aim.x_tran_vel_body(0) - LY * cim.omega(2)) * (aim.x_tran_vel_body(0) - LY * cim.omega(2))  +
+                                (aim.x_tran_vel_body(2) + LY * cim.omega(1)) * (aim.x_tran_vel_body(2) + LY * cim.omega(1))
+                            )
+                        );
+    aim.alpha_lt = atan2(aim.x_tran_vel_body(1), 
+                        sqrt( 
+                                (aim.x_tran_vel_body(0) + LY * cim.omega(2)) * (aim.x_tran_vel_body(0) + LY * cim.omega(2))  +
+                                (aim.x_tran_vel_body(2) - LY * cim.omega(1)) * (aim.x_tran_vel_body(2) - LY * cim.omega(1))
+                            )
+                        );
+
+    aim.alpha_com = atan2(aim.x_tran_vel_body(0), -1.0 * aim.x_tran_vel_body(2));
+    aim.beta_com = atan2( aim.x_tran_vel_body(1), 
+                          sqrt( 
+                                aim.x_tran_vel_body(0)*aim.x_tran_vel_body(0) + 
+                                aim.x_tran_vel_body(2)*aim.x_tran_vel_body(2) 
+                               ) 
+                        );
+
+    // Compute the aerodynamic DCM matrix
+    aim.Rwj(0,0) = -sin(aim.alpha_com) * cos(aim.beta_com);
+    aim.Rwj(1,0) = sin(aim.beta_com);
+    aim.Rwj(2,0) = cos(aim.alpha_com) * cos(aim.beta_com);
+    
+    aim.Rwj(0,1) = sin(aim.alpha_com) * sin(aim.beta_com);
+    aim.Rwj(1,1) = cos(aim.beta_com);
+    aim.Rwj(2,1) = -cos(aim.alpha_com)*sin(aim.beta_com);
+
+    aim.Rwj(0,2) = -cos(aim.alpha_com);
+    aim.Rwj(1,2) = 0.0;
+    aim.Rwj(2,2) = -sin(aim.alpha_com);
+
+    // Compute the coefficient of lift for all aerodynamic surfaces
+    aim.cl_up = aerofoil.ComputeCL(aim.alpha_up);
+    aim.cl_lw = aerofoil.ComputeCL(aim.alpha_lw);
+    aim.cl_rt = aerofoil.ComputeCL(aim.alpha_rt);
+    aim.cl_lt = aerofoil.ComputeCL(aim.alpha_lt);
+
+    // Compute the coefficient of drag for all aerodynamic surfaces
+    aim.cd_up = aerofoil.ComputeCD(aim.alpha_up);
+    aim.cd_lw = aerofoil.ComputeCD(aim.alpha_lw);
+    aim.cd_rt = aerofoil.ComputeCD(aim.alpha_rt);
+    aim.cd_lt = aerofoil.ComputeCD(aim.alpha_lt);
+
+    // Compute the moment coefficient for all aerodynamic surfaces
+    aim.cm_up = aerofoil.ComputeCM(aim.alpha_up);
+    aim.cm_lw = aerofoil.ComputeCM(aim.alpha_lw);
+    aim.cm_rt = aerofoil.ComputeCM(aim.alpha_rt);
+    aim.cm_lt = aerofoil.ComputeCM(aim.alpha_lt);
+
+    // Compute the lift, drag and sideforce
+    aim.drag = aim.v_norm_sq * ( DYN_PRESS_COEFF_W*(aim.cd_up + aim.cd_lw) + DYN_PRESS_COEFF_S*(aim.cd_rt + aim.cd_lt));
+    aim.sideforce = aim.v_norm_sq * DYN_PRESS_COEFF_S * (aim.cl_rt + aim.cl_lt);
+    aim.lift = aim.v_norm_sq * DYN_PRESS_COEFF_W * (aim.cl_up + aim.cl_lw);
+
+    // Estimated aerodynamic forces
+    aim.Fa_W << aim.drag, aim.sideforce, aim.lift;
+    aim.Fa_J << aim.Rwj * aim.Fa_W;
+    aim.Fa_I << cim.Rji * aim.Fa_J;       // Used in the baseline as inversion term
+
+    // Estimated aerodynamic moment
+    aim.torq_Fa << R_UP.cross(aim.Fa_J) + R_LW.cross(aim.Fa_J) + R_RT.cross(aim.Fa_J) + R_LT.cross(aim.Fa_J);
+
+    aim.Ma_J(0) = DYN_PRESS_COEFF_S * LY_S * aim.v_norm_sq * (aim.cm_rt + aim.cm_lt) + aim.torq_Fa(0);
+    aim.Ma_J(1) = DYN_PRESS_COEFF_W * LX * aim.v_norm_sq * (aim.cm_up + aim.cm_lw) + aim.torq_Fa(1);
+    aim.Ma_J(2) = 0.0 + aim.torq_Fa(2);    // Used in the baseline as inversion term 
+
 }
 
 // Function that is called in sim-bridge.cpp
@@ -649,6 +941,7 @@ void mrac_geometric::run(const double time_step_rk4_) {
 
     // Process the dynamics --------------------------------------------------------
     // 1. Compute the aerodynamics
+    compute_aerodynamics();
 
     // 2. Compute the translational control input
     compute_translational_control_in_I();
@@ -802,6 +1095,7 @@ void mrac_geometric::ConfigureHeaders()
         << "proj_op_activated_K_hat_x_translational [-], "
         << "proj_op_activated_K_hat_r_translational [-], "
         << "proj_op_activated_Theta_hat_translational [-], "
+        << "proj_op_activated_Theta1_hat_translational [-], "
         << "proj_op_activated_K_hat_x_rotational [-], "
         << "proj_op_activated_K_hat_r_rotational [-], "
         << "proj_op_activated_Theta_hat_rotational [-], "
@@ -814,10 +1108,21 @@ void mrac_geometric::ConfigureHeaders()
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_x_translational", csm.K_hat_x_tran, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_r_translational", csm.K_hat_r_tran, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "Theta_hat_translational", csm.Theta_hat_tran, "[-]");
+        ::_shared_::_serialize_::generateMatrixHeaders(oss, "Theta1_hat_translational", csm.Theta1_hat_tran, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_x_rotational", csm.K_hat_x_rot, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "K_hat_r_rotational", csm.K_hat_r_rot, "[-]");
         ::_shared_::_serialize_::generateMatrixHeaders(oss, "Theta_hat_rotational", csm.Theta_hat_rot, "[-]");    
 
+        oss << "mu_dot_x Filter [N/s], "
+            << "mu_dot_y Filter [N/s], "
+            << "mu_dot_z Filter [N/s], "
+            << "mu_est_x Differentiator [N], "
+            << "mu_est_y Differentiator [N], "
+            << "mu_est_z Differentiator [N], "
+            << "mu_dot_est_x Differentiator [N], "
+            << "mu_dot_est_y Differentiator [N], "
+            << "mu_dot_est_z Differentiator [N], "
+            ;         
 
     try {
         BOOST_LOG_SCOPED_THREAD_TAG("Tag", "ControllerTag");
@@ -944,6 +1249,7 @@ void mrac_geometric::LogData()
         << cim.proj_op_activated_K_hat_x_translational << ", "
         << cim.proj_op_activated_K_hat_r_translational << ", "
         << cim.proj_op_activated_Theta_hat_translational << ", "
+        << cim.proj_op_activated_Theta1_hat_translational << ", "
         << cim.proj_op_activated_K_hat_x_rotational << ", "
         << cim.proj_op_activated_K_hat_r_rotational << ", "
         << cim.proj_op_activated_Theta_hat_rotational << ", "
@@ -956,9 +1262,21 @@ void mrac_geometric::LogData()
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_x_tran);
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_r_tran);
         ::_shared_::_serialize_::appendEigenData(oss, csm.Theta_hat_tran);
+        ::_shared_::_serialize_::appendEigenData(oss, csm.Theta1_hat_tran);
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_x_rot);
         ::_shared_::_serialize_::appendEigenData(oss, csm.K_hat_r_rot);
         ::_shared_::_serialize_::appendEigenData(oss, csm.Theta_hat_rot);
+
+        oss << cip.C_filter_mu * csm.state_mu_x_filter << ", "
+            << cip.C_filter_mu * csm.state_mu_y_filter << ", "
+            << cip.C_filter_mu * csm.state_mu_z_filter << ", "
+            << dim.x_hat_vs_2l_mrad_dot(0) << ", "
+            << dim.x_hat_vs_2l_mrad_dot(1) << ", "
+            << dim.x_hat_vs_2l_mrad_dot(2) << ", "
+            << dim.x_hat_vs_2l_mrad_dot(3) << ", "
+            << dim.x_hat_vs_2l_mrad_dot(4) << ", "
+            << dim.x_hat_vs_2l_mrad_dot(5) << ", "
+            ;
 
 
     try {

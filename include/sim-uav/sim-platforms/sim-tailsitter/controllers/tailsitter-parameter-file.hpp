@@ -79,8 +79,9 @@ inline constexpr double SQRT2_OVER_2 = 0.7071067;
 // Vehicle and Environment Defines
 inline constexpr double LX = 0.2230099724;                                    // dist to motor along x^J              [m] 
 inline constexpr double LY = 0.2589711696;                                    // dist to motor along y^J              [m] 
-inline constexpr double LZ = 0.01801629;                                      // dist to the aero center of the wings [m] 
-inline constexpr double LZ_S = 0.10234962;                                    // dist to aero center of stabs         [m] 
+inline constexpr double LY_S = 0.108;                                         // dist to the aero center of the stabs [m]
+inline constexpr double LZ = 0.001801629;                                     // dist to the aero center of the wings [m] 
+inline constexpr double LZ_S = 0.010234962;                                   // dist to aero center of stabs         [m] 
 inline constexpr double SPAN_W = 1.50;                                        // span of wings                        [m]
 inline constexpr double CHORD_W = 0.20;                                       // chord of wings                       [m]
 inline constexpr double SPAN_S = 0.420;                                       // span of stabs                        [m] 
@@ -91,6 +92,12 @@ inline constexpr double PLANFORM_AREA_S = (2.0 * SPAN_S * CHORD_S);           //
 // Aerodynamic Dynamic Coefficient Defines
 inline constexpr double DYN_PRESS_COEFF_W = (0.5 * RHO_HAT * PLANFORM_AREA_W);     
 inline constexpr double DYN_PRESS_COEFF_S = (0.5 * RHO_HAT * PLANFORM_AREA_S);
+
+// Location of the aerodynamic centers of the wings and stabilizers
+const Eigen::Vector3d R_UP{ -LX,   0.0,    LZ};
+const Eigen::Vector3d R_LW{  LX,   0.0,    LZ};
+const Eigen::Vector3d R_RT{ 0.0,  LY_S,  LZ_S};
+const Eigen::Vector3d R_LT{ 0.0, -LY_S,  LZ_S};
 
 // Weight vector of the tailsitter
 static inline const Eigen::Vector3d e3_basis = Eigen::Vector3d(0.0, 0.0, 1.0);

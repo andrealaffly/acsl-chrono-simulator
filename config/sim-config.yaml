@@ -97,7 +97,7 @@ aerodynamics:
   # Set to true to import the wing aerodynamics
   wing_aero: true
   # Set to true to print the wing aerodynamic state data to the terminal screen
-  aero_terminal: true
+  aero_terminal: false
 
 # ============================================================================
 # UAV Motor Disturbances
@@ -137,8 +137,8 @@ controller:
     mrac: false
     tlmrac: false
   tailsitter:
-    mrac_geometric: false
-    mrac_hybrid: true
+    mrac_geometric: true
+    mrac_hybrid: false
   quadm:
     mrac_omega: false
     mrac_geometric: false
