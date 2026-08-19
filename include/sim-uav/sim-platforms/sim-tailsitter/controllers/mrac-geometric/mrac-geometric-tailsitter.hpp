@@ -327,6 +327,16 @@ struct aerodynamics_internal_members
     double cm_lw;                                                  // Coefficient of moment for lower wing
     double cm_rt;                                                  // Coefficient of moment for right stab
     double cm_lt;                                                  // Coefficient of moment for left stab
+
+    double lift;                                                   // Estimate of the lift provided by the aerofoils
+    double drag;                                                   // Estimate of the drag due to the aerofoils
+    double sideforce;                                              // Estimate of the sideforce due to the aerofoils
+
+    Eigen::Matrix<double, 3, 1> Fa_W;                              // Estimate of the aerodynamic forces in W (wind frame)
+    Eigen::Matrix<double, 3, 1> Fa_J;                              // Estimate of the aerodynamic forces in J (body frame)
+    Eigen::Matrix<double, 3, 1> Fa_I;                              // Estimate of the aerodynamic forces in I
+    Eigen::Matrix<double, 3, 1> torq_Fa;                           // Estimate of the torque due to the aerodynamic forces
+    Eigen::Matrix<double, 3, 1> Ma_J;                              // Estimate of the aerodynamic moments in J
 };
 
 // =========================================================================================================

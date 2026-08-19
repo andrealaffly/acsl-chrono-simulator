@@ -797,7 +797,7 @@ void simtailsitter::ConfigureTAILSITTERPayload()
 
     auto sphereBody3 = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
-        4.405 * 7073.55,
+        3.105 * 7073.55,
         sph_mat
     );
 

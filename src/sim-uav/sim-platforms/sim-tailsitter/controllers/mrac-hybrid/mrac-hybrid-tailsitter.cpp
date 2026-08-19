@@ -432,10 +432,11 @@ void mrac_hybrid::compute_translational_control_in_I()
 
   // Compute the baseline control input
   cim.mu_tran_baseline << MASS*( - cip.Kp_tran * cim.e_tran_pos               // Proportional term
-                                  - cip.Kd_tran * cim.e_tran_vel               // Derivative term
-                                  - cip.Ki_tran * csm.e_tran_pos_I             // Integral term
-                                  + cim.x_tran_ref_dot.tail<3>() )             // Feedforward term
-                                  - MASS * G * e3_basis;                       // Weight Dynamic inversion term
+                                 - cip.Kd_tran * cim.e_tran_vel               // Derivative term
+                                 - cip.Ki_tran * csm.e_tran_pos_I             // Integral term
+                                 + cim.x_tran_ref_dot.tail<3>() )             // Feedforward term
+                                 - MASS * G * e3_basis                        // Weight Dynamic inversion term
+                                 - aim.Fa_I;                                  // Aerodynamic inversion term
 
   // Temp regressor
   cim.outer_loop_regressor.setZero();
@@ -753,12 +754,13 @@ void mrac_hybrid::compute_rotational_control()
 
   // Cache the feedforward term
   Eigen::Vector3d fft;
-  fft = inertia_matrix_q * ( cim.omega.cross(inertia_matrix_q * cim.omega) - cim.alpha_d );
+  fft = inertia_matrix_q * ( -1.0 * cim.alpha_d ) + cim.omega.cross(inertia_matrix_q * cim.omega);
 
   // Compute the baseline control input
-  cim.tau_rot_baseline << inertia_matrix_q * ( - cip.Kp_att * cim.Xi_e        // Proportional term
-                                                - cip.Kd_att * cim.omega_e)    // Derivative term
-                                                + fft;                         // Feedforward term
+    cim.tau_rot_baseline << inertia_matrix_q * ( - cip.Kp_att * cim.Xi_e        // Proportional term
+                                                 - cip.Kd_att * cim.omega_e)    // Derivative term
+                                                 + fft                          // Feedforward term
+                                                 - aim.Ma_J;                    // Aerodynamic inversion term
 
   // Temp regressor
   cim.inner_loop_regressor.setZero();
@@ -934,12 +936,96 @@ void mrac_hybrid::cache_previous_error_hybrid()
 
 }
 
+// Function to compute the aerodynamics
+void mrac_hybrid::compute_aerodynamics() 
+{
+  // Compute the translational velocity in the body frame
+  aim.x_tran_vel_body << cim.Rij * cim.x_tran_vel;
+
+  // Compute the norm of the velocity
+  aim.v_norm_sq = aim.v_norm_sq = aim.x_tran_vel_body.squaredNorm();
+
+  // Compute the aerodynamic angles
+  aim.alpha_up = atan2(aim.x_tran_vel_body(0), -1.0 * (aim.x_tran_vel_body(2) - LY * cim.omega(0)) );
+  aim.alpha_lw = atan2(aim.x_tran_vel_body(0), -1.0 * (aim.x_tran_vel_body(2) + LY * cim.omega(0)) );
+  aim.alpha_rt = atan2(aim.x_tran_vel_body(1), 
+                      sqrt( 
+                              (aim.x_tran_vel_body(0) - LY * cim.omega(2)) * (aim.x_tran_vel_body(0) - LY * cim.omega(2))  +
+                              (aim.x_tran_vel_body(2) + LY * cim.omega(1)) * (aim.x_tran_vel_body(2) + LY * cim.omega(1))
+                          )
+                      );
+  aim.alpha_lt = atan2(aim.x_tran_vel_body(1), 
+                      sqrt( 
+                              (aim.x_tran_vel_body(0) + LY * cim.omega(2)) * (aim.x_tran_vel_body(0) + LY * cim.omega(2))  +
+                              (aim.x_tran_vel_body(2) - LY * cim.omega(1)) * (aim.x_tran_vel_body(2) - LY * cim.omega(1))
+                          )
+                      );
+
+  aim.alpha_com = atan2(aim.x_tran_vel_body(0), -1.0 * aim.x_tran_vel_body(2));
+  aim.beta_com = atan2( aim.x_tran_vel_body(1), 
+                        sqrt( 
+                              aim.x_tran_vel_body(0)*aim.x_tran_vel_body(0) + 
+                              aim.x_tran_vel_body(2)*aim.x_tran_vel_body(2) 
+                              ) 
+                      );
+
+  // Compute the aerodynamic DCM matrix
+  aim.Rwj(0,0) = -sin(aim.alpha_com) * cos(aim.beta_com);
+  aim.Rwj(1,0) = sin(aim.beta_com);
+  aim.Rwj(2,0) = cos(aim.alpha_com) * cos(aim.beta_com);
+  
+  aim.Rwj(0,1) = sin(aim.alpha_com) * sin(aim.beta_com);
+  aim.Rwj(1,1) = cos(aim.beta_com);
+  aim.Rwj(2,1) = -cos(aim.alpha_com)*sin(aim.beta_com);
+
+  aim.Rwj(0,2) = -cos(aim.alpha_com);
+  aim.Rwj(1,2) = 0.0;
+  aim.Rwj(2,2) = -sin(aim.alpha_com);
+
+  // Compute the coefficient of lift for all aerodynamic surfaces
+  aim.cl_up = aerofoil.ComputeCL(aim.alpha_up);
+  aim.cl_lw = aerofoil.ComputeCL(aim.alpha_lw);
+  aim.cl_rt = aerofoil.ComputeCL(aim.alpha_rt);
+  aim.cl_lt = aerofoil.ComputeCL(aim.alpha_lt);
+
+  // Compute the coefficient of drag for all aerodynamic surfaces
+  aim.cd_up = aerofoil.ComputeCD(aim.alpha_up);
+  aim.cd_lw = aerofoil.ComputeCD(aim.alpha_lw);
+  aim.cd_rt = aerofoil.ComputeCD(aim.alpha_rt);
+  aim.cd_lt = aerofoil.ComputeCD(aim.alpha_lt);
+
+  // Compute the moment coefficient for all aerodynamic surfaces
+  aim.cm_up = aerofoil.ComputeCM(aim.alpha_up);
+  aim.cm_lw = aerofoil.ComputeCM(aim.alpha_lw);
+  aim.cm_rt = aerofoil.ComputeCM(aim.alpha_rt);
+  aim.cm_lt = aerofoil.ComputeCM(aim.alpha_lt);
+
+  // Compute the lift, drag and sideforce
+  aim.drag = aim.v_norm_sq * ( DYN_PRESS_COEFF_W*(aim.cd_up + aim.cd_lw) + DYN_PRESS_COEFF_S*(aim.cd_rt + aim.cd_lt));
+  aim.sideforce = aim.v_norm_sq * DYN_PRESS_COEFF_S * (aim.cl_rt + aim.cl_lt);
+  aim.lift = aim.v_norm_sq * DYN_PRESS_COEFF_W * (aim.cl_up + aim.cl_lw);
+
+  // Estimated aerodynamic forces
+  aim.Fa_W << aim.drag, aim.sideforce, aim.lift;
+  aim.Fa_J << aim.Rwj * aim.Fa_W;
+  aim.Fa_I << cim.Rji * aim.Fa_J;       // Used in the baseline as inversion term
+
+  // Estimated aerodynamic moment
+  aim.torq_Fa << R_UP.cross(aim.Fa_J) + R_LW.cross(aim.Fa_J) + R_RT.cross(aim.Fa_J) + R_LT.cross(aim.Fa_J);
+
+  aim.Ma_J(0) = DYN_PRESS_COEFF_S * LY_S * aim.v_norm_sq * (aim.cm_rt + aim.cm_lt) + aim.torq_Fa(0);
+  aim.Ma_J(1) = DYN_PRESS_COEFF_W * LX * aim.v_norm_sq * (aim.cm_up + aim.cm_lw) + aim.torq_Fa(1);
+  aim.Ma_J(2) = 0.0 + aim.torq_Fa(2);
+
+}
+
 // Function that is called in sim-bridge.cpp
 void mrac_hybrid::run(const double time_step_rk4_) 
 {
 
   // Process the dynamics --------------------------------------------------------
   // 1. Compute the aerodynamics
+  compute_aerodynamics();
 
   // 1.1 Cache the previous error for hybrid post integration algorithm
   cache_previous_error_hybrid();

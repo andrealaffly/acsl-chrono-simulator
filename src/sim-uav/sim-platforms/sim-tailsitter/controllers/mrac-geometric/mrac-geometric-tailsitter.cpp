@@ -393,7 +393,8 @@ void mrac_geometric::compute_translational_control_in_I()
                                    - cip.Kd_tran * cim.e_tran_vel               // Derivative term
                                    - cip.Ki_tran * csm.e_tran_pos_I             // Integral term
                                    + cim.x_tran_ref_dot.tail<3>() )             // Feedforward term
-                                   - MASS * G * e3_basis;                       // Weight Dynamic inversion term
+                                   - MASS * G * e3_basis                        // Weight Dynamic inversion term
+                                   - aim.Fa_I;                                  // Aerodynamic inversion term
 
     // Temp regressor
     cim.outer_loop_regressor.setZero();
@@ -709,12 +710,13 @@ void mrac_geometric::compute_rotational_control()
 
     // Cache the feedforward term
     Eigen::Vector3d fft;
-    fft = inertia_matrix_q * ( cim.omega.cross(inertia_matrix_q * cim.omega) - cim.alpha_d );
+    fft = inertia_matrix_q * ( -1.0 * cim.alpha_d ) + cim.omega.cross(inertia_matrix_q * cim.omega);
     
     // Compute the baseline control input
     cim.tau_rot_baseline << inertia_matrix_q * ( - cip.Kp_att * cim.Xi_e        // Proportional term
                                                  - cip.Kd_att * cim.omega_e)    // Derivative term
-                                                 + fft;                         // Feedforward term
+                                                 + fft                          // Feedforward term
+                                                 - aim.Ma_J;                    // Aerodynamic inversion term
 
     // Temp regressor
     cim.inner_loop_regressor.setZero();
@@ -882,6 +884,23 @@ void mrac_geometric::compute_aerodynamics()
     aim.cm_lw = aerofoil.ComputeCM(aim.alpha_lw);
     aim.cm_rt = aerofoil.ComputeCM(aim.alpha_rt);
     aim.cm_lt = aerofoil.ComputeCM(aim.alpha_lt);
+
+    // Compute the lift, drag and sideforce
+    aim.drag = aim.v_norm_sq * ( DYN_PRESS_COEFF_W*(aim.cd_up + aim.cd_lw) + DYN_PRESS_COEFF_S*(aim.cd_rt + aim.cd_lt));
+    aim.sideforce = aim.v_norm_sq * DYN_PRESS_COEFF_S * (aim.cl_rt + aim.cl_lt);
+    aim.lift = aim.v_norm_sq * DYN_PRESS_COEFF_W * (aim.cl_up + aim.cl_lw);
+
+    // Estimated aerodynamic forces
+    aim.Fa_W << aim.drag, aim.sideforce, aim.lift;
+    aim.Fa_J << aim.Rwj * aim.Fa_W;
+    aim.Fa_I << cim.Rji * aim.Fa_J;       // Used in the baseline as inversion term
+
+    // Estimated aerodynamic moment
+    aim.torq_Fa << R_UP.cross(aim.Fa_J) + R_LW.cross(aim.Fa_J) + R_RT.cross(aim.Fa_J) + R_LT.cross(aim.Fa_J);
+
+    aim.Ma_J(0) = DYN_PRESS_COEFF_S * LY_S * aim.v_norm_sq * (aim.cm_rt + aim.cm_lt) + aim.torq_Fa(0);
+    aim.Ma_J(1) = DYN_PRESS_COEFF_W * LX * aim.v_norm_sq * (aim.cm_up + aim.cm_lw) + aim.torq_Fa(1);
+    aim.Ma_J(2) = 0.0 + aim.torq_Fa(2);
 
 }
 
