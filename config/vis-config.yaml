@@ -91,8 +91,8 @@ render:
 # ============================================================================
 window:
   # (px) Window width for the display
-  width: 500
+  width: 1000
   # (px) Window height for the display
-  height: 600
+  height: 1000
   # Title bar text for visualization window
   title: "ACSL PHYSICS SIMULATOR"

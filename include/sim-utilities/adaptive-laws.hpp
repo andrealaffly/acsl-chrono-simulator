@@ -276,28 +276,28 @@ namespace _adaptive_laws_hybrid_
       const double delta_integral_eQe = eQe - eQe_previous;
       integral_eQe_map(0) += delta_integral_eQe;
 
-      std::cout << "[HYB] Reset triggered at t = " << time_now << '\n';
-      std::cout << "      integral_eQe = " << integral_eQe
-                << ", summation_hybrid_P = " << summation_hybrid_P << '\n';
+      // std::cout << "[HYB] Reset triggered at t = " << time_now << '\n';
+      // std::cout << "      integral_eQe = " << integral_eQe
+      //           << ", summation_hybrid_P = " << summation_hybrid_P << '\n';
 
-      std::cout << "      s_hybrid (old -> new) = "
-                << s_hybrid_old << " -> " << s_hybrid << '\n';
+      // std::cout << "      s_hybrid (old -> new) = "
+      //           << s_hybrid_old << " -> " << s_hybrid << '\n';
 
-      std::cout << "      ePe = " << ePe
-                << ", series_element = " << series_element
-                << ", delta_series = " << delta_series
-                << ", jump_factor = " << jump_factor << '\n';
+      // std::cout << "      ePe = " << ePe
+      //           << ", series_element = " << series_element
+      //           << ", delta_series = " << delta_series
+      //           << ", jump_factor = " << jump_factor << '\n';
 
-      std::cout << "      ||e|| = " << e.norm()
-                << ", ||jump_ref|| = " << jump_reference_trajectory.norm() << '\n';
+      // std::cout << "      ||e|| = " << e.norm()
+      //           << ", ||jump_ref|| = " << jump_reference_trajectory.norm() << '\n';
 
-      std::cout << "      eQe = " << eQe
-                << ", eQe_previous = " << eQe_previous
-                << ", delta_integral_eQe = " << delta_integral_eQe
-                << ", integral_eQe (new) = " << integral_eQe_map(0)
-                << std::endl;
+      // std::cout << "      eQe = " << eQe
+      //           << ", eQe_previous = " << eQe_previous
+      //           << ", delta_integral_eQe = " << delta_integral_eQe
+      //           << ", integral_eQe (new) = " << integral_eQe_map(0)
+      //           << std::endl;
 
-      std::cout << "checkAndTriggerTrajectoryReset() cond. verified [integral_eQe >= summation_hybrid_P]" << std::endl;
+      // std::cout << "checkAndTriggerTrajectoryReset() cond. verified [integral_eQe >= summation_hybrid_P]" << std::endl;
     }
 
     return {s_hybrid, time_of_last_trajectory_reset};
