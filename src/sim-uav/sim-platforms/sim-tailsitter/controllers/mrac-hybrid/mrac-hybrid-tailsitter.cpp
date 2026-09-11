@@ -942,12 +942,12 @@ void mrac_hybrid::post_integration_hybrid_algorithm()
     cim.first_controller_loop
   );
 
-  std::cout << "old ref: " << x_tran_ref_old.transpose() << std::endl;
-  std::cout << "new ref: " << csm.x_tran_ref.transpose() << std::endl;
-  std::cout << "diff ref: "
-  << (x_tran_ref_old - csm.x_tran_ref).transpose()
-  << std::endl;
-  std::cout << "P_tran: \n"  << cip.P_tran << std::endl;
+  // std::cout << "old ref: " << x_tran_ref_old.transpose() << std::endl;
+  // std::cout << "new ref: " << csm.x_tran_ref.transpose() << std::endl;
+  // std::cout << "diff ref: "
+  // << (x_tran_ref_old - csm.x_tran_ref).transpose()
+  // << std::endl;
+  // std::cout << "P_tran: \n"  << cip.P_tran << std::endl;
 
   // Assign the y's -> Use the dxdt function to reassign the y rk4 vector.
   int index = 18;

@@ -71,7 +71,7 @@ void simquadm::ConfigureQUADMChassis()
                                                chrono::ChQuaternion<>(1,0,0,0)); 
 
     // Configure the name of the visualization obj file ---------------------------------------------------------------
-    chassis_properties.vis_obj_name = "body_1_1.obj";
+    chassis_properties.vis_obj_name = "chassis.obj";
 
     // Configure the chassis collision shapes -------------------------------------------------------------------------
     // Cache some variables for this 
@@ -133,13 +133,13 @@ void simquadm::ConfigureQUADMProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
     // Set the color and opacity values
     prop_properties.color = _uav_::_prop_color_::RED;
-    prop_properties.opacity = 0.5;
+    prop_properties.opacity = 0.3;
 
     // Call all the configuration helper functions
     ConfigureUAVPropInitPos(1, prop_properties.init_pos);
@@ -172,13 +172,13 @@ void simquadm::ConfigureQUADMProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
     // Set the color and opacity values
-        prop_properties.color = _uav_::_prop_color_::RED;
-    prop_properties.opacity = 0.5;
+    prop_properties.color = _uav_::_prop_color_::RED;
+    prop_properties.opacity = 0.3;
 
     // Call all the configuration helper functions
     ConfigureUAVPropInitPos(2, prop_properties.init_pos);
@@ -211,13 +211,13 @@ void simquadm::ConfigureQUADMProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
     // Set the color and opacity values
-    prop_properties.color = _uav_::_prop_color_::ORANGE;
-    prop_properties.opacity = 0.5;
+    prop_properties.color = _uav_::_prop_color_::RED;
+    prop_properties.opacity = 0.3;
 
     // Call all the configuration helper functions
     ConfigureUAVPropInitPos(3, prop_properties.init_pos);
@@ -250,13 +250,13 @@ void simquadm::ConfigureQUADMProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
     // Set the color and opacity values
-    prop_properties.color = _uav_::_prop_color_::ORANGE;
-    prop_properties.opacity = 0.5;
+    prop_properties.color = _uav_::_prop_color_::RED;
+    prop_properties.opacity = 0.3;
 
     // Call all the configuration helper functions
     ConfigureUAVPropInitPos(4, prop_properties.init_pos);

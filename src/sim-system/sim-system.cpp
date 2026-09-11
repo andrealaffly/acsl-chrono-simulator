@@ -438,14 +438,123 @@ void simsystem::SetupVisualizationSystem()
         // ------------------------------------------------------------------------
         m_irrlicht.AddLogo();          // Overlay Project Chrono logo (optional branding)
         m_irrlicht.AddSkyBox();        // Add skybox textures for realistic environment
-        m_irrlicht.AddLight(_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(+30, +30, -100)), 
-                                                             140, chrono::ChColor(0.7f, 0.7f, 0.7f));
-        m_irrlicht.AddLight(_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(+30, -30, -100)), 
-                                                             140, chrono::ChColor(0.7f, 0.7f, 0.7f));
-        m_irrlicht.AddLight(_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-30, +30, -100)), 
-                                                             140, chrono::ChColor(0.7f, 0.7f, 0.7f));
-        m_irrlicht.AddLight(_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(-30, -30, -100)), 
-                                                             140, chrono::ChColor(0.7f, 0.7f, 0.7f));
+        
+        // ----------------------------------
+        // Lighting grid dimensions
+        // ----------------------------------
+
+        const double xmin = -1000.0;
+        const double xmax =  1000.0;
+
+        const double ymin = -1000.0;
+        const double ymax =  1000.0;
+
+        const double zmin = -100.0;
+        const double zmax =  100.0;
+
+
+        // ----------------------------------
+        // Top light grid: z = zmax
+        // ----------------------------------
+
+        for (double x = xmin; x <= xmax; x += 100) {
+            for (double y = ymin; y <= ymax; y += 100) {
+                m_irrlicht.AddLight(
+                    _shared_::_transformations_::GetChronoPosFromNED(
+                        chrono::ChVector3d(x, y, zmax)
+                    ),
+                    100,
+                    chrono::ChColor(0.7f, 0.7f, 0.7f)
+                );
+            }
+        }
+
+
+        // ----------------------------------
+        // Bottom light grid: z = zmin
+        // ----------------------------------
+
+        for (double x = xmin; x <= xmax; x += 100) {
+            for (double y = ymin; y <= ymax; y += 100) {
+                m_irrlicht.AddLight(
+                    _shared_::_transformations_::GetChronoPosFromNED(
+                        chrono::ChVector3d(x, y, zmin)
+                    ),
+                    100,
+                    chrono::ChColor(0.7f, 0.7f, 0.7f)
+                );
+            }
+        }
+
+
+        // ----------------------------------
+        // Side light grid: x = xmin
+        // ----------------------------------
+
+        for (double y = ymin; y <= ymax; y += 100) {
+            for (double z = zmin; z <= zmax; z += 100) {
+                m_irrlicht.AddLight(
+                    _shared_::_transformations_::GetChronoPosFromNED(
+                        chrono::ChVector3d(xmin, y, z)
+                    ),
+                    100,
+                    chrono::ChColor(0.7f, 0.7f, 0.7f)
+                );
+            }
+        }
+
+
+        // ----------------------------------
+        // Side light grid: x = xmax
+        // ----------------------------------
+
+        for (double y = ymin; y <= ymax; y += 100) {
+            for (double z = zmin; z <= zmax; z += 100) {
+                m_irrlicht.AddLight(
+                    _shared_::_transformations_::GetChronoPosFromNED(
+                        chrono::ChVector3d(xmax, y, z)
+                    ),
+                    100,
+                    chrono::ChColor(0.7f, 0.7f, 0.7f)
+                );
+            }
+        }
+
+
+        // ----------------------------------
+        // Side light grid: y = ymin
+        // ----------------------------------
+
+        for (double x = xmin; x <= xmax; x += 100) {
+            for (double z = zmin; z <= zmax; z += 100) {
+                m_irrlicht.AddLight(
+                    _shared_::_transformations_::GetChronoPosFromNED(
+                        chrono::ChVector3d(x, ymin, z)
+                    ),
+                    100,
+                    chrono::ChColor(0.7f, 0.7f, 0.7f)
+                );
+            }
+        }
+
+
+        // ----------------------------------
+        // Side light grid: y = ymax
+        // ----------------------------------
+
+        for (double x = xmin; x <= xmax; x += 100) {
+            for (double z = zmin; z <= zmax; z += 100) {
+                m_irrlicht.AddLight(
+                    _shared_::_transformations_::GetChronoPosFromNED(
+                        chrono::ChVector3d(x, ymax, z)
+                    ),
+                    100,
+                    chrono::ChColor(0.7f, 0.7f, 0.7f)
+                );
+            }
+        }
+
+
     }
     else {
         return;

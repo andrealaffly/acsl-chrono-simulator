@@ -68,7 +68,7 @@ void simx8::ConfigureX8Chassis()
                                                chrono::ChQuaternion<>(1,0,0,0)); 
 
     // Configure the name of the visualization obj file ---------------------------------------------------------------
-    chassis_properties.vis_obj_name = "body_1_1.obj";
+    chassis_properties.vis_obj_name = "chassis.obj";
 
     // Configure the chassis collision shapes -------------------------------------------------------------------------
     // Cache some variables for this 
@@ -141,7 +141,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -180,7 +180,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -219,7 +219,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -258,7 +258,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -297,7 +297,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -336,7 +336,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -375,7 +375,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -414,7 +414,7 @@ void simx8::ConfigureX8Props()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -921,7 +921,7 @@ void simx8::ConfigureX8Payload()
 
     // Visualization shape
     auto box_shape = chrono_types::make_shared<chrono::ChVisualShapeModelFile>(); 
-    box_shape->SetFilename(this->GetUAVShapesDir() + "body_4_1.obj");
+    box_shape->SetFilename(this->GetUAVShapesDir() + "box.obj");
     box_shape->SetMutable(true);
     box_shape->SetColor(chrono::ChColor(0.0f,0.1f,0.1f));
     box_shape->SetOpacity(0.2);
@@ -936,7 +936,7 @@ void simx8::ConfigureX8Payload()
     mat->SetSpinningFriction(0.01);
 
     // Create a triangle mesh collision shape 
-    auto mesh = chrono::ChTriangleMeshConnected::CreateFromWavefrontFile(this->GetUAVShapesDir() + "body_4_1_collision.obj", false, true);
+    auto mesh = chrono::ChTriangleMeshConnected::CreateFromWavefrontFile(this->GetUAVShapesDir() + "box_collision.obj", false, true);
     mesh->RepairDuplicateVertexes(1e-9);
 
     auto coll_shape = chrono_types::make_shared<chrono::ChCollisionShapeTriangleMesh>(mat, mesh, false, false, 0.001);

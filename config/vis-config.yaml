@@ -43,7 +43,7 @@ main:
   # Set to true for Irrlicht visualizaton 
   enable_irrlicht: true
   # Target framerate
-  target_frame_rate: 30.0
+  target_frame_rate: 60.0
 
 # ============================================================================
 # Camera options
@@ -55,7 +55,7 @@ camera:
   # (m) Distance the camera is placed in z (NED)
   mv_cam_chase_ht: 1.0
   # (m) Distance the camera is placed in x (NED) 
-  mv_cam_chase_dt: 1.0
+  mv_cam_chase_dt: 0.15
   
 # ============================================================================
 # Render options for assets
@@ -63,9 +63,9 @@ camera:
 render:
   # Frame overlays -------------------------------------------------
   # Show NED reference frame axes in the scene
-  render_ned_frame: true
+  render_ned_frame: false
   # Show body-fixed UAV frame axes
-  render_body_frame: true
+  render_body_frame: false
   # Show propeller frame axes
   render_prop_frames: false
   # Show all COG frames in the scene
@@ -77,13 +77,13 @@ render:
   # Show the chassis aerodynamic drag frame
   render_chassis_drag_frame: false
   # Show the chassis aerodynamic wing frames
-  render_wing_aero_frames: true
+  render_wing_aero_frames: false
 
   # Rendering effects ----------------------------------------------
   # Toggle shadow rendering (GPU-intensive)
   render_shadows: false
   # Visualize collision/contact boundaries
-  render_collision_zones: true
+  render_collision_zones: false
 
 
 # ============================================================================
@@ -91,8 +91,8 @@ render:
 # ============================================================================
 window:
   # (px) Window width for the display
-  width: 1600
+  width: 1000
   # (px) Window height for the display
-  height: 1200
+  height: 1000
   # Title bar text for visualization window
   title: "ACSL PHYSICS SIMULATOR"

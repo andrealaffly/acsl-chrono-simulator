@@ -692,7 +692,7 @@ void simtailsitter::ConfigureTAILSITTERPayload()
     box_shape->SetFilename(this->GetUAVShapesDir() + "box.obj");
     box_shape->SetMutable(true);
     box_shape->SetColor(chrono::ChColor(0.0f,0.1f,0.1f));
-    box_shape->SetOpacity(0.2);
+    box_shape->SetOpacity(0.1);
     box->AddVisualShape(box_shape, chrono::ChFramed(chrono::ChVector3d(0,0,0), chrono::ChQuaterniond(1,0,0,0)));
 
     // Collision model
@@ -835,10 +835,10 @@ void simtailsitter::ConfigureTAILSITTERPayload()
         chrono::GetChronoDataFile("textures/pinkwhite.png")
     );
 
-    // this->getPhysicsSystem().Add(sphereBody);
-    // this->getPhysicsSystem().Add(sphereBody1);
-    // this->getPhysicsSystem().Add(sphereBody2);
-    // this->getPhysicsSystem().Add(sphereBody3);
+    this->getPhysicsSystem().Add(sphereBody);
+    this->getPhysicsSystem().Add(sphereBody1);
+    this->getPhysicsSystem().Add(sphereBody2);
+    this->getPhysicsSystem().Add(sphereBody3);
 
 
 }
