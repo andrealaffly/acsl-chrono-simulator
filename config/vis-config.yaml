@@ -43,7 +43,7 @@ main:
   # Set to true for Irrlicht visualizaton 
   enable_irrlicht: true
   # Target framerate
-  target_frame_rate: 75.0
+  target_frame_rate: 60.0
 
 # ============================================================================
 # Camera options

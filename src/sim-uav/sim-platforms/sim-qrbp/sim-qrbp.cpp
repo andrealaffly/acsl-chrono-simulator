@@ -71,7 +71,7 @@ void simqrbp::ConfigureQRBPChassis()
                                                chrono::ChQuaternion<>(1,0,0,0)); 
 
     // Configure the name of the visualization obj file ---------------------------------------------------------------
-    chassis_properties.vis_obj_name = "body_3_1.obj";
+    chassis_properties.vis_obj_name = "chassis.obj";
 
     // Configure the chassis collision shapes -------------------------------------------------------------------------
     // Cache some variables for this 
@@ -155,7 +155,7 @@ void simqrbp::ConfigureQRBPProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_4_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -194,7 +194,7 @@ void simqrbp::ConfigureQRBPProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_2_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -233,7 +233,7 @@ void simqrbp::ConfigureQRBPProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_5_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
@@ -272,7 +272,7 @@ void simqrbp::ConfigureQRBPProps()
                                            chrono::ChQuaternion<>(1,0,0,0));
     
     // Configure the name of the visualization obj file
-    prop_properties.vis_obj_name = "body_1_1.obj";
+    prop_properties.vis_obj_name = "prop.obj";
 
     // There are no collision geometries - Therefore we ignore that step
 
