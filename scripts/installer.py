@@ -1183,7 +1183,20 @@ def install_glew() -> None:
 
 
 def install_opengl() -> None:
-    apt_install(["libglu1-mesa-dev", "freeglut3-dev", "mesa-common-dev"])
+    apt_install([
+        "libglu1-mesa-dev",
+        "freeglut3-dev",
+        "mesa-common-dev",
+        "libxxf86vm-dev",
+        "libgl-dev",
+        "libglx-dev",
+        "libopengl-dev",
+        "libx11-dev",
+        "libxrandr-dev",
+        "libxinerama-dev",
+        "libxcursor-dev",
+        "libxi-dev",
+    ])
     run(["ldconfig"])
 
 
@@ -1459,9 +1472,9 @@ def make_install_items() -> list[InstallItem]:
         InstallItem("Blaze", "C++ math headers", lambda: Path("/usr/local/include/blaze").is_dir(), install_blaze, "Bundled source"),
         InstallItem("Boost", "C++ libraries", lambda: pkg_config_exists("boost") or Path("/usr/include/boost/version.hpp").is_file() or Path("/usr/local/include/boost/version.hpp").is_file(), install_boost, "Bundled source"),
         InstallItem("GLM", "OpenGL math", lambda: Path("/usr/local/include/glm").is_dir(), install_glm, "Bundled source"),
+        InstallItem("OpenGL", "Mesa development", lambda: pkg_config_exists("gl"), install_opengl, "Ubuntu package"),
         InstallItem("GLFW", "Window and input", lambda: Path("/usr/local/include/GLFW").is_dir() and any_glob_exists("/usr/local/lib/libglfw*"), install_glfw, "Bundled source"),
         InstallItem("GLEW", "OpenGL loader", lambda: Path("/usr/local/include/GL/glew.h").is_file() and any_glob_exists("/usr/local/lib/libGLEW*"), install_glew, "Bundled source"),
-        InstallItem("OpenGL", "Mesa development", lambda: pkg_config_exists("gl"), install_opengl, "Ubuntu package"),
         InstallItem("OpenCASCADE", "CAD toolkit", lambda: pkg_config_exists("occt") or Path("/usr/lib/libTKernel.so").is_file() or Path("/usr/local/lib/libTKernel.so").is_file(), install_opencascade, "Bundled source"),
         InstallItem("Librealsense", "RealSense SDK", lambda: Path("/usr/local/include/librealsense2").is_dir() or Path("/usr/local/lib/librealsense2.so").is_file(), install_librealsense, "Bundled source"),
         InstallItem("VulkanSceneGraph", "Vulkan renderer and Chrono VSG libraries", vsg_is_installed, install_vulkanscenegraph, "Source build"),
