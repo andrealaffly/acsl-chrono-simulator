@@ -24,3 +24,5 @@ Temporary Items
 
 # pycache 
 scripts/__pycache__/
+scripts/acsl_gui/__pycache__/
+scripts/acsl_gui/pages/__pycache__/
