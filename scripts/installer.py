@@ -93,6 +93,7 @@ from dataclasses import dataclass
 from queue import Empty, Queue
 from typing import Callable, Optional
 
+# --- Application constants and paths -----------------------------------
 APP_TITLE = "ACSL UAV Simulator"
 APP_TAGLINE = "A Project-Chrono Based High Fidelity Simulator for UAVs"
 EXPECTED_DIR_NAME = "scripts"
@@ -106,6 +107,7 @@ BUILD_GITIGNORE = "# Generated build output.\n*\n!.gitignore\n"
 ROS_BY_UBUNTU = {"22.04": "humble", "24.04": "jazzy"}
 
 
+# --- Error types ---------------------------------------------------------
 class InstallerError(RuntimeError):
     """An expected installer error."""
 
@@ -120,11 +122,13 @@ class ComponentInstallError(InstallerError):
         super().__init__(f"{component} installation failed.")
 
 
+# --- General-purpose helpers ---------------------------------------------
 def build_jobs() -> int:
     """Use one fewer CPU than the host reports, while retaining at least one job."""
     return max(1, (os.cpu_count() or 1) - 2)
 
 
+# Check whether a given executable is available on PATH.
 def command_exists(command: str) -> bool:
     return shutil.which(command) is not None
 
@@ -134,6 +138,7 @@ def run(command: list[str], *, cwd: Optional[Path] = None, check: bool = True) -
     return subprocess.run(command, cwd=str(cwd) if cwd else None, check=check, text=True)
 
 
+# Thin wrapper around `apt install -y` that no-ops on an empty package list.
 def apt_install(packages: list[str]) -> None:
     if packages:
         run(["apt", "install", "-y", *packages])
@@ -152,6 +157,7 @@ def ensure_ignored_directory(directory: Path) -> None:
         gitignore.write_text(BUILD_GITIGNORE, encoding="utf-8")
 
 
+# --- Host environment detection ------------------------------------------
 def ubuntu_version() -> Optional[str]:
     os_release = Path("/etc/os-release")
     if not os_release.is_file():
@@ -168,6 +174,7 @@ def is_wsl() -> bool:
     return bool(os.environ.get("WSL_DISTRO_NAME")) or "microsoft" in platform.release().lower()
 
 
+# Map the detected Ubuntu release to its matching ROS 2 distribution name.
 def ros_distribution() -> Optional[str]:
     return ROS_BY_UBUNTU.get(ubuntu_version())
 
@@ -184,6 +191,7 @@ def invoking_user_home() -> Path:
     return Path.home()
 
 
+# Parse the installed CMake version from `cmake --version`, if present.
 def cmake_version() -> Optional[tuple[int, int, int]]:
     if not command_exists("cmake"):
         return None
@@ -204,6 +212,7 @@ def cmake_is_sufficient() -> bool:
     return version is not None and version >= MINIMUM_CMAKE_VERSION
 
 
+# --- Pre-flight validation -------------------------------------------------
 def validate_environment() -> None:
     if os.geteuid() != 0:
         raise InstallerError("Administrator privileges are required.\n\nRun:\n\nsudo python3 installer.py")
@@ -227,6 +236,7 @@ def ensure_gui_dependencies() -> None:
         raise InstallerError("python3-tk was installed but Tkinter remains unavailable.\n\nOpen a new terminal and run the installer again.")
 
 
+# Read a text file as UTF-8, normalizing CRLF line endings.
 def read_text_file(path: Path, label: str) -> str:
     if not path.is_file():
         raise InstallerError(f"{label} file was not found:\n\n{path}")
@@ -237,6 +247,7 @@ def license_text() -> str:
     return read_text_file(REPO_DIR / "LICENSE", "License")
 
 
+# --- Package/dependency presence checks -------------------------------------
 def pkg_config_exists(package: str) -> bool:
     if not command_exists("pkg-config"):
         return False
@@ -255,6 +266,7 @@ def any_glob_exists(pattern: str) -> bool:
     return any(Path("/").glob(pattern.lstrip("/")))
 
 
+# Represents a single installable prerequisite shown in the picker/check UI.
 @dataclass
 class InstallItem:
     name: str
@@ -265,18 +277,22 @@ class InstallItem:
     installed: Optional[bool] = None
     selected: bool = False
 
+    # Re-run the presence check and default the selection to "not installed".
     def refresh(self) -> bool:
         self.installed = bool(self.check())
         self.selected = not self.installed
         return self.installed
 
 
+# Tkinter is imported only after ensuring python3-tk is present, so that a
+# missing dependency is handled gracefully instead of raising ImportError.
 ensure_gui_dependencies()
 
 import tkinter as tk
 from tkinter import scrolledtext, ttk
 
 
+# --- Graphical user interface ---------------------------------------------
 class InstallerUI:
     """Fixed ACSL GUI and reusable template for all installation work screens."""
 
@@ -309,6 +325,7 @@ class InstallerUI:
     PICKER_NAME_MAX_CHARS = 31
     PICKER_DESCRIPTION_MAX_CHARS = 38
 
+    # Build the (initially hidden) main window and show the starting screen.
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.withdraw()
@@ -334,12 +351,14 @@ class InstallerUI:
         self._show_starting_screen()
         self.root.deiconify()
 
+    # Reposition the window to the center of the primary screen.
     def _center_window(self) -> None:
         self.root.update_idletasks()
         x = max(0, (self.root.winfo_screenwidth() - self.WINDOW_WIDTH) // 2)
         y = max(0, (self.root.winfo_screenheight() - self.WINDOW_HEIGHT) // 2)
         self.root.geometry(f"{self.WINDOW_WIDTH}x{self.WINDOW_HEIGHT}+{x}+{y}")
 
+    # Define the ttk theme/colors/fonts used across every screen.
     def _setup_styles(self) -> None:
         style = ttk.Style(self.root)
         if "clam" in style.theme_names():
@@ -360,6 +379,7 @@ class InstallerUI:
         style.configure("Red.Horizontal.TProgressbar", troughcolor=self.FIELD, background=self.RED, bordercolor=self.FIELD, lightcolor=self.RED, darkcolor=self.RED)
         style.configure("Green.Horizontal.TProgressbar", troughcolor=self.FIELD, background=self.GREEN, bordercolor=self.FIELD, lightcolor=self.GREEN, darkcolor=self.GREEN)
 
+    # Load an image file as a PhotoImage, downscaling it to fit max_width.
     def _load_photo(self, path: Path, max_width: int) -> Optional[tk.PhotoImage]:
         if not path.is_file():
             return None
@@ -376,6 +396,7 @@ class InstallerUI:
         self._logo_image = self._load_photo(LOGO_PATH, max_width=700)
         return self._logo_image
 
+    # Decode every frame of the progress GIF up front so playback is smooth.
     def _precache_progress_gif(self) -> None:
         if not PROGRESS_GIF_PATH.is_file():
             return
@@ -393,6 +414,7 @@ class InstallerUI:
             index += 1
         self._gif_frames = frames
 
+    # Assemble the fixed outer layout: header/logo, content card, footer.
     def _build_window(self) -> None:
         outer = ttk.Frame(self.root, style="App.TFrame", padding=(34, 26, 34, 22))
         outer.pack(fill="both", expand=True)
@@ -412,6 +434,7 @@ class InstallerUI:
         tk.Label(footer, textvariable=self.status_var, bg=self.BG, fg=self.MUTED, font=("DejaVu Sans", 9)).pack(side="left")
         tk.Label(footer, text=f"ACSL • Ubuntu {ubuntu_version() or 'unknown'}", bg=self.BG, fg=self.DIM, font=("DejaVu Sans", 9)).pack(side="right")
 
+    # Cancel any pending animation callback for the progress GIF.
     def _stop_gif(self) -> None:
         if self._gif_after_id is not None:
             try:
@@ -421,6 +444,7 @@ class InstallerUI:
         self._gif_after_id = None
         self._gif_label = None
 
+    # Reset the content card so the next screen can be built from scratch.
     def _clear_card(self) -> None:
         self._stop_gif()
         self._template_progress = None
@@ -431,10 +455,12 @@ class InstallerUI:
         for child in self.card.winfo_children():
             child.destroy()
 
+    # Record that the window was closed so callers can treat it as a cancel.
     def _exit(self) -> None:
         self._exit_requested = True
         self.root.quit()
 
+    # Render the small eyebrow/title/description header used on every screen.
     def _heading(self, eyebrow: str, title: str, description: str = "") -> None:
         ttk.Label(self.card, text=eyebrow.upper(), style="Eyebrow.TLabel").pack(anchor="w")
         ttk.Label(self.card, text=title, style="Title.TLabel").pack(anchor="w", pady=(6, 0))
@@ -443,12 +469,14 @@ class InstallerUI:
             body.pack(anchor="w", fill="x", pady=(8, 18))
             body.bind("<Configure>", lambda event: body.configure(wraplength=max(event.width - 8, 400)))
 
+    # Build a read-only scrollable text box (used for license/summary panels).
     def _scroll_text(self, content: str, height: int = 22) -> scrolledtext.ScrolledText:
         text = scrolledtext.ScrolledText(self.card, wrap="word", height=height, font=("DejaVu Sans", 10), background=self.FIELD, foreground=self.TEXT, insertbackground=self.TEXT, selectbackground="#8f2526", relief="flat", borderwidth=0, padx=16, pady=14)
         text.insert("1.0", content)
         text.configure(state="disabled")
         return text
 
+    # Display the initial "starting up" placeholder screen.
     def _show_starting_screen(self) -> None:
         self._clear_card()
         self.status_var.set("Starting installer")
@@ -457,6 +485,8 @@ class InstallerUI:
         self.root.update_idletasks()
         self.root.update()
 
+    # Reusable "work in progress" screen template: heading + progress bar +
+    # status label + media area + action row, shared by all long-running steps.
     def begin_work_screen(self, eyebrow: str, title: str, description: str, status: str, determinate: bool = False) -> None:
         self._clear_card()
         self.status_var.set(status)
@@ -475,6 +505,7 @@ class InstallerUI:
         self.root.update_idletasks()
         self.root.update()
 
+    # Update the status label/progress percentage on the current work screen.
     def set_work_status(self, status: str, percent: Optional[int] = None) -> None:
         self.status_var.set(status)
         if self._template_status is not None:
@@ -484,6 +515,7 @@ class InstallerUI:
         self.root.update_idletasks()
         self.root.update()
 
+    # Advance the progress GIF by one frame and schedule the next tick.
     def _animate_gif(self, frame_index: int = 0) -> None:
         if self._gif_label is None or not self._gif_frames:
             return
@@ -495,6 +527,7 @@ class InstallerUI:
             return
         self._gif_after_id = self.root.after(self.GIF_INTERVAL_MS, self._animate_gif, (frame_index + 1) % len(self._gif_frames))
 
+    # Show the animated GIF (or a text fallback) in the work screen's media area.
     def show_template_animation(self) -> None:
         if self._template_media is None:
             return
@@ -507,6 +540,8 @@ class InstallerUI:
         self._gif_label.pack(anchor="center", side="bottom", pady=(self.GIF_TOP_PADDING, self.MEDIA_BOTTOM_PADDING))
         self._animate_gif()
 
+    # Run blocking work on a worker thread while pumping the Tk event loop,
+    # then re-raise any worker exception on the calling (UI) thread.
     def run_background_task(self, task: Callable[[], None], poll_ms: int = 10) -> None:
         """Run blocking work off the Tk thread so GIF animation remains responsive."""
         completed: Queue[tuple[Optional[BaseException], Optional[object]]] = Queue(maxsize=1)
@@ -535,6 +570,8 @@ class InstallerUI:
                 raise error.with_traceback(traceback_obj)  # type: ignore[arg-type]
             return
 
+    # Transition the current work screen into its "complete" state and wait
+    # for the user to press Continue; returns False if the window was closed.
     def finish_work_screen(self, message: str, continue_label: str = "Continue") -> bool:
         if self._template_media is None or self._template_actions is None:
             raise InstallerError("The installer screen template has not been initialized.")
@@ -565,6 +602,7 @@ class InstallerUI:
         self.root.mainloop()
         return result["continue"] and not self._exit_requested
 
+    # Render the grid of prerequisite-name tiles used during the check phase.
     def show_check_grid(self, items: list[InstallItem]) -> None:
         if self._template_media is None:
             return
@@ -582,6 +620,7 @@ class InstallerUI:
         self.root.update_idletasks()
         self.root.update()
 
+    # Color a single check-grid tile green (found) or red (missing).
     def mark_check_result(self, item: InstallItem, installed: bool) -> None:
         cell = self._check_cells.get(item.name)
         if cell is None:
@@ -593,6 +632,7 @@ class InstallerUI:
         self.root.update_idletasks()
         self.root.update()
 
+    # Show the prerequisite-check summary and wait for the user to continue.
     def pause_after_check_screen(self, items: list[InstallItem]) -> bool:
         if self._template_actions is None:
             raise InstallerError("The prerequisite-check template has not been initialized.")
@@ -617,6 +657,8 @@ class InstallerUI:
         self.root.mainloop()
         return result["continue"] and not self._exit_requested
 
+    # Show the welcome/administrator-access notice and license agreement;
+    # returns True only if the user checks "I accept" and clicks Agree.
     def welcome_and_license(self, license_content: str) -> bool:
         self._clear_card()
         self.status_var.set("Review the license agreement")
@@ -658,6 +700,7 @@ class InstallerUI:
         self.root.protocol("WM_DELETE_WINDOW", self._exit)
         return result["accepted"] and not self._exit_requested
 
+    # Ask whether to run `apt update && apt upgrade -y` before installation.
     def update_prompt(self) -> bool:
         self._clear_card()
         self.status_var.set("Ubuntu package update recommendation")
@@ -687,6 +730,8 @@ class InstallerUI:
         self.root.protocol("WM_DELETE_WINDOW", self._exit)
         return result["approved"] and not self._exit_requested
 
+    # Interactive tile grid for choosing which prerequisites to install;
+    # returns the selected items, or None if the user exits without choosing.
     def package_selection_screen(self, items: list[InstallItem]) -> Optional[list[InstallItem]]:
         self._clear_card()
         self.status_var.set("Select prerequisites")
@@ -703,6 +748,7 @@ class InstallerUI:
         detail_labels: dict[str, tk.Label] = {}
         state_labels: dict[str, tk.Label] = {}
 
+        # Apply selected/unselected styling to one tile's widgets.
         def paint_tile(item: InstallItem) -> None:
             selected = selected_vars[item.name].get()
             tile, name = tiles[item.name], name_labels[item.name]
@@ -718,10 +764,12 @@ class InstallerUI:
                 detail.configure(bg=self.SURFACE, fg=self.MUTED)
                 state.configure(bg=self.SURFACE, fg=self.DIM, text="Installed" if item.installed else "Available")
 
+        # Flip a tile's selection state when clicked.
         def toggle_item(item: InstallItem) -> None:
             selected_vars[item.name].set(not selected_vars[item.name].get())
             paint_tile(item)
 
+        # Lay out one tile per prerequisite item in a fixed-size grid.
         for index, item in enumerate(items):
             row, column = divmod(index, self.GRID_COLUMNS)
             selected_vars[item.name] = tk.BooleanVar(value=item.selected)
@@ -767,6 +815,7 @@ class InstallerUI:
         self.root.protocol("WM_DELETE_WINDOW", self._exit)
         return result["selected"]
 
+    # Show the final list of selected prerequisites before installing them.
     def install_review_screen(self, selected: list[InstallItem]) -> bool:
         self._clear_card()
         self.status_var.set("Review installation plan")
@@ -964,6 +1013,7 @@ class InstallerUI:
 
         return result["rebuild"] and not self._exit_requested
 
+    # Inform the user that a supported ROS 2 distribution was already found.
     def ros_detected_screen(self, distribution: str) -> bool:
         self._clear_card()
         self.status_var.set("ROS 2 detected")
@@ -984,6 +1034,7 @@ class InstallerUI:
         self.root.mainloop()
         return result["continue"] and not self._exit_requested
 
+    # Ask whether to install ROS 2 base and dev tools for the detected release.
     def ros_install_prompt(self, distribution: str) -> bool:
         self._clear_card()
         self.status_var.set("ROS 2 installation")
@@ -1010,6 +1061,7 @@ class InstallerUI:
         self.root.protocol("WM_DELETE_WINDOW", self._exit)
         return result["install"] and not self._exit_requested
 
+    # Ask whether to append the ROS 2 environment source line to .bashrc.
     def ros_bashrc_prompt(self, distribution: str, bashrc: Path) -> bool:
         self._clear_card()
         self.status_var.set("ROS 2 shell setup")
@@ -1038,6 +1090,7 @@ class InstallerUI:
         self.root.protocol("WM_DELETE_WINDOW", self._exit)
         return result["add"] and not self._exit_requested
 
+    # Final ROS 2 summary screen showing install/bashrc outcome.
     def ros_complete_screen(self, distribution: str, bashrc_added: bool) -> bool:
         self._clear_card()
         self.status_var.set("ROS 2 complete")
@@ -1062,6 +1115,8 @@ class InstallerUI:
         self.root.mainloop()
         return result["continue"] and not self._exit_requested
 
+    # Terminal failure screen: shows which component failed and what
+    # completed successfully before the failure occurred.
     def error_screen(self, component: str, completed: list[str], error: Exception) -> None:
         self._clear_card()
         self.status_var.set("Installation failed")
@@ -1082,6 +1137,7 @@ class InstallerUI:
         self.root.protocol("WM_DELETE_WINDOW", self.root.quit)
         self.root.mainloop()
 
+    # Tear down the Tk window, ignoring errors if it is already gone.
     def close(self) -> None:
         self._stop_gif()
         try:
@@ -1091,6 +1147,9 @@ class InstallerUI:
             pass
 
 
+# --- Individual prerequisite installers -----------------------------------
+# Most of these simply apt-install a package; a few build bundled
+# third-party source under libraries/third-party instead.
 def install_thrust() -> None:
     apt_install(["libthrust-dev"])
 
@@ -1111,6 +1170,8 @@ def install_clang() -> None:
     apt_install(["clang"])
 
 
+# Build CMake from the bundled source instead of relying on the apt version,
+# since Ubuntu's packaged CMake may be older than MINIMUM_CMAKE_VERSION.
 def install_cmake() -> None:
     apt_install(["openssl", "libssl-dev", "pkg-config"])
     source = REPO_DIR / "libraries" / "third-party" / "CMake"
@@ -1131,6 +1192,7 @@ def install_irrlicht() -> None:
     apt_install(["libirrlicht1.8", "libirrlicht-dev", "libirrlicht-doc"])
 
 
+# Blaze and GLM are header-only libraries: just copy the headers into place.
 def install_blaze() -> None:
     source = REPO_DIR / "libraries" / "third-party" / "blaze" / "blaze"
     if not source.is_dir():
@@ -1157,6 +1219,8 @@ def install_glm() -> None:
     run(["ldconfig"])
 
 
+# Shared CMake configure/build/install helper used by the source-built
+# third-party dependencies (GLFW, GLEW, OpenCASCADE, Librealsense).
 def build_and_install(source: Path, build: Path, cmake_command: list[str]) -> None:
     """Create an ignored build directory; preserve it on failed configuration/build."""
     if not source.is_dir():
@@ -1219,6 +1283,10 @@ def install_librealsense() -> None:
 
 
 
+# --- VulkanSceneGraph (VSG) installation -----------------------------------
+# VSG and its dependents (assimp, vsgXchange, vsgImGui, vsgExamples) are
+# cloned and built from source, in dependency order, since they are not
+# packaged for Ubuntu.
 VSG_CACHE_DIR = SCRIPT_DIR / "cache" / "vsg"
 VSG_INSTALL_PREFIX = Path("/usr/local")
 VSG_REPOSITORIES = {
@@ -1235,6 +1303,8 @@ VSG_CMAKE_CONFIGS = {
 }
 
 
+# Create (and .gitignore) the local cache directories used to clone and
+# build VSG sources, keeping generated content out of version control.
 def ensure_vsg_cache_directory() -> Path:
     cache_root = SCRIPT_DIR / "cache"
     cache_root.mkdir(parents=True, exist_ok=True)
@@ -1250,6 +1320,7 @@ def ensure_vsg_cache_directory() -> Path:
     return VSG_CACHE_DIR
 
 
+# Locate an installed VSG package's CMake config file below /usr/local.
 def vsg_config_path(package: str) -> Optional[Path]:
     config_name = VSG_CMAKE_CONFIGS[package]
     candidates: list[Path] = []
@@ -1262,6 +1333,9 @@ def vsg_is_installed() -> bool:
     return all(vsg_config_path(package) is not None for package in VSG_CMAKE_CONFIGS)
 
 
+# Remove any previously installed VSG-named files/directories below
+# /usr/local before reinstalling, without touching unrelated software
+# (e.g. Assimp, which other packages may depend on, is left alone).
 def remove_old_vsg_installation() -> None:
     exact_names = {"vsg", "vsgXchange", "vsgImGui", "vsgExamples", "VulkanSceneGraph"}
     for root in (
@@ -1289,6 +1363,7 @@ def remove_old_vsg_installation() -> None:
                 child.unlink(missing_ok=True)
 
 
+# Shallow-clone a pinned VSG_REPOSITORIES tag, replacing any prior checkout.
 def clone_vsg_source(name: str, destination: Path) -> None:
     repository, tag = VSG_REPOSITORIES[name]
     if destination.exists():
@@ -1326,6 +1401,9 @@ def cmake_build_install(source: Path, build: Path, options: list[str]) -> None:
         ])
 
 
+# Orchestrate the full VSG stack: apt dependencies, then clone/build/install
+# assimp, vsg, vsgXchange, vsgImGui, and vsgExamples in that dependency order,
+# verifying each CMake config lands under /usr/local before moving on.
 def install_vulkanscenegraph() -> None:
     apt_install([
         "git", "ninja-build", "libvulkan-dev", "vulkan-tools",
@@ -1459,6 +1537,9 @@ def add_ros_to_bashrc(distribution: str) -> tuple[Path, bool]:
     return bashrc, True
 
 
+# --- Prerequisite catalog and orchestration --------------------------------
+# The full list of InstallItem entries shown in the check/selection screens,
+# each pairing a presence check with its installer function.
 def make_install_items() -> list[InstallItem]:
     return [
         InstallItem("Thrust", "Parallel CUDA headers", lambda: dpkg_package_installed("thrust") or dpkg_package_installed("libthrust-dev"), install_thrust, "Ubuntu package"),
@@ -1481,12 +1562,14 @@ def make_install_items() -> list[InstallItem]:
     ]
 
 
+# Run `apt update && apt upgrade -y` on its own animated work screen.
 def update_system(ui: InstallerUI) -> None:
     ui.begin_work_screen("System update", "Updating Ubuntu packages", "Refreshing package metadata and applying available package updates.", "Updating")
     ui.show_template_animation()
     ui.run_background_task(lambda: (run(["apt", "update"]), run(["apt", "upgrade", "-y"])))
 
 
+# Run each item's presence check, updating the check grid live as it goes.
 def check_prerequisites(ui: InstallerUI, items: list[InstallItem]) -> bool:
     total = len(items)
     ui.begin_work_screen("Environment check", "Checking prerequisites", "Scanning the ACSL and Project Chrono development environment.", "Checking", determinate=True)
@@ -1500,6 +1583,8 @@ def check_prerequisites(ui: InstallerUI, items: list[InstallItem]) -> bool:
     return ui.pause_after_check_screen(items)
 
 
+# Run the installer function for each selected item in order, stopping and
+# raising ComponentInstallError (with the completed list so far) on failure.
 def install_selected_prerequisites(ui: InstallerUI, selected: list[InstallItem]) -> bool:
     installable = [item for item in selected if item.install is not None]
     deferred = [item for item in selected if item.install is None]
@@ -1532,6 +1617,7 @@ def install_selected_prerequisites(ui: InstallerUI, selected: list[InstallItem])
 
 
 
+# --- chrono-ros-messages ROS 2 workspace -----------------------------------
 def ros_workspace_directory() -> Path:
     """Return the repository-local chrono ROS 2 workspace."""
     workspace = REPO_DIR / "libraries" / "chrono-ros-messages"
@@ -1622,6 +1708,7 @@ def compile_chrono_ros_messages(ui: InstallerUI, distribution: str) -> bool:
 
 
 
+# --- Project Chrono configuration and build ---------------------------------
 def chrono_source_directory() -> Path:
     """Return the Project Chrono source tree and verify it is complete."""
     source = REPO_DIR / "libraries" / "chrono"
@@ -1833,6 +1920,11 @@ def configure_ros2(ui: InstallerUI) -> bool:
     return ui.ros_complete_screen(distribution, bashrc_added)
 
 
+# --- Top-level installation flow ---------------------------------------
+# Drives every screen in sequence: license, update, prerequisites, ROS 2,
+# chrono-ros-messages, Project Chrono configuration, and final build.
+# Each step returns False (or None) to signal the user backed out/exited,
+# which unwinds execute_installation immediately.
 def execute_installation(ui: InstallerUI) -> None:
     if not ui.welcome_and_license(license_text()):
         return
@@ -1869,6 +1961,9 @@ def execute_installation(ui: InstallerUI) -> None:
     build_project_chrono_ui(ui)
 
 
+# Entry point: validates the host, builds the UI, runs the installation
+# flow, and maps every known exception type to an appropriate exit path
+# (a GUI error screen when the window exists, otherwise a stderr message).
 def main() -> int:
     ui: Optional[InstallerUI] = None
     try:

@@ -21,3 +21,6 @@ Temporary Items
 # MATLAB/system caches
 .matlab/
 *.asv
+
+# pycache 
+scripts/__pycache__/
