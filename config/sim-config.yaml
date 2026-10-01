@@ -178,9 +178,9 @@ controller:
     mrac_hybrid: false
   quadm:
     mrac_omega: false
-    mrac_geometric: false
+    mrac_geometric: true
     mrac_geometric_na_ebci: false
-    rkhs_mrac_geometric: true
+    rkhs_mrac_geometric: false
   x8:
     mrac_omega: false
     mrac_geometric: false

@@ -61,7 +61,7 @@ solver:
 
   # Set to true to maintain soft real-time pacing for every simulation tick.
   # This feature is strongly recommended to be swithed off unless necessary.
-  ThrottleRealTime: true
+  ThrottleRealTime: false
 
 
 # ============================================================================
