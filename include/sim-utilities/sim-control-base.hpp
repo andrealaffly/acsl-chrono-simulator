@@ -50,6 +50,7 @@
 #include "deadzone-operator.hpp"            // Import API for dead zone operator
 #include "projection-operator.hpp"          // Import API for projection operator
 #include "adaptive-laws.hpp"                // Import API for adaptive laws
+#include "rkhs-utilities.hpp"               // Import API for RKHS related calculations
 
 // ====================================================================================
 // Boost includes
