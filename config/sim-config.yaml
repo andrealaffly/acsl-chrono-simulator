@@ -46,6 +46,9 @@ mode:
   # Enable to run in SIL/HIL mode | runs in MIL if not enabled
   enable_flightstack_loop: false
 
+  # ROS 2 domain ID of the SIL/HIL link. Must match LOCKSTEP_DOMAIN_ID in the flightstack's utils/start_lockstep.sh
+  ros_domain_id: 49
+
   # Set to true to use the biplane frame in control computation
   enable_biplane_frame_data: false
 
@@ -62,6 +65,9 @@ debug:
   # Set to true if you want to log the uav chassis and prop state data to file
   log_physics: true
 
+  # Set to true if you want to log the network timing data in HIL/SIL mode to file
+  log_network: true
+  
   # Set to true if you want to stop the simulation at a given time (in seconds)
   sim_debug_stop: false
 
@@ -87,10 +93,10 @@ platform:
   qrbp: false
   
   # Set to true to import the tailsitter
-  tailsitter: true
+  tailsitter: false
   
   # Set to true to import the medium quadcotper
-  quadm: false
+  quadm: true
   
   # Set to true to import the x8 cotper
   x8: false
@@ -101,7 +107,7 @@ platform:
 # ============================================================================
 origin:
   # Set to true to import the drone at (0,0,0) in the inertial frame
-  set_origin_to_zero: false
+  set_origin_to_zero: true
 
   # Set to true to import the drone at (X,Y,Z) in the inertial frame
   set_origin_to_custom: false
@@ -129,10 +135,10 @@ origin:
 # ============================================================================
 aerodynamics:
   # Set to true to enable the chassis drag aerodynamics
-  chassis_drag: true
+  chassis_drag: false
   
   # Set to true to enable the wing aerodynamics (if present)
-  wing_aero: true
+  wing_aero: false
   
   # Set to true to print the wing aerodynamic state data to the terminal screen
   aero_terminal: false
@@ -175,12 +181,12 @@ controller:
     tlmrac: false
   tailsitter:
     mrac_geometric: false
-    mrac_hybrid: true
+    mrac_hybrid: false
   quadm:
     mrac_omega: false
     mrac_geometric: false
     mrac_geometric_na_ebci: false
-    nmpc: false
+    nmpc: true
   x8:
     mrac_omega: false
     mrac_geometric: false
@@ -209,7 +215,7 @@ poly:
   # Set to true to use the segmented minimum-jerk polynomial trajectory module
   enabled: true
   # Type in the trajectory filename that needs to be imported
-  filename: faster_bank_traj0p8
+  filename: bean_trajectory_modified0p8
   # Type in the filetype of the trajectory filename that needs to be imported
   filetype: json
 

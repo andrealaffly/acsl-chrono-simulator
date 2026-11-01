@@ -90,7 +90,7 @@ if(NOT Chrono_DIR)
   set(Chrono_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries/chrono-build/cmake" CACHE PATH "Chrono config directory")
 endif()
 
-# NOTE: vsg, vsgXchange, and vsgImGui are installed globally to /usr/local by installer.sh.
+# NOTE: vsg, vsgXchange, and vsgImGui are installed globally to /usr/local by installer.py.
 # CMake's find_package(... CONFIG) automatically searches /usr/local/lib/cmake/<pkg>/ as
 # part of its default system prefix path, so no vsg_DIR/vsgXchange_DIR/vsgImGui_DIR
 # overrides are needed here anymore.
@@ -103,6 +103,13 @@ endif()
 # Find pacakges needed for the codebase
 #   - Most systems have 1.71.0. Therfore it is set as the minimum required version of Boost
 find_package(Boost 1.71 REQUIRED COMPONENTS log log_setup system filesystem thread)
+
+# ROS 2 for the flightstack lockstep client (HIL / SIL). ROS 2 is installed by the installer and sourced in ~/.bashrc.
+# The lockstep services are prebuilt in libraries/chrono-ros-messages and NOT sourced in ~/.bashrc on purpose,
+# so point CMake at that package here.
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/chrono-ros-messages/install/acsl_lockstep_interfaces")
+find_package(rclcpp REQUIRED)
+find_package(acsl_lockstep_interfaces REQUIRED)
 
 find_package(Chrono
              COMPONENTS Irrlicht VSG
@@ -177,6 +184,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/sim-scene/sim-locales)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/sim-scene/sim-locales/sim-flat)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/sim-bridge)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/sim-lockstep)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/sim-trajectory)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/sim-trajectory/sim-trajectories)
@@ -237,6 +245,7 @@ set(SOURCES
    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim-system/sim-system.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim-scene/sim-locales/sim-flat/sim-flat.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim-bridge/sim-bridge.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/sim-lockstep/sim-lockstep.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim-aerofoil/sim-aerofoil.cpp
 
    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim-utilities/sim-helpers.cpp
@@ -282,7 +291,10 @@ add_executable(acsl_sim ${SOURCES})
 # install tree (if using an installed version of Chrono).
 #--------------------------------------------------------------
 
+# Project Chrono data libraries
 target_compile_definitions(acsl_sim PUBLIC "CHRONO_DATA_DIR=\"${CHRONO_DATA_DIR}\"") 
+# Lockstep message libraries: the client puts this folder in LD_LIBRARY_PATH itself, so nothing has to be sourced
+target_compile_definitions(acsl_sim PUBLIC "LOCKSTEP_INTERFACES_LIB_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/libraries/chrono-ros-messages/install/acsl_lockstep_interfaces/lib\"")
 target_compile_options(acsl_sim PUBLIC ${CHRONO_CXX_FLAGS})
 target_link_options(acsl_sim PUBLIC ${CHRONO_LINKER_FLAGS})
 
@@ -291,13 +303,20 @@ target_link_options(acsl_sim PUBLIC ${CHRONO_LINKER_FLAGS})
 #--------------------------------------------------------------
 
 target_link_libraries(acsl_sim
-    ${CHRONO_LIBRARIES}
-    ${Boost_LOG_LIBRARY}
-    ${Boost_LOG_SETUP_LIBRARY}
-    ${Boost_SYSTEM_LIBRARY}
-    ${Boost_FILESYSTEM_LIBRARY}
-    ${Boost_THREAD_LIBRARY}
+    ${CHRONO_LIBRARIES}                     # Project Chrono libraries
+    ${Boost_LOG_LIBRARY}                    # Boost libraries
+    ${Boost_LOG_SETUP_LIBRARY}              # Boost libraries
+    ${Boost_SYSTEM_LIBRARY}                 # Boost libraries
+    ${Boost_FILESYSTEM_LIBRARY}             # Boost libraries
+    ${Boost_THREAD_LIBRARY}                 # Boost libraries
+    rclcpp::rclcpp                          # ROS 2 client library (lockstep client)
+    ${acsl_lockstep_interfaces_TARGETS}     # Lockstep service type support
 )
+
+# Write DT_RPATH instead of DT_RUNPATH: DT_RUNPATH only covers the executable's direct libraries, and the lockstep
+# type support library needs its sibling libacsl_lockstep_interfaces__rosidl_generator_c.so (colcon installs it
+# without an rpath). With DT_RPATH, acsl_sim starts without sourcing libraries/chrono-ros-messages.
+target_link_options(acsl_sim PRIVATE "-Wl,--disable-new-dtags")
 
 #--------------------------------------------------------------
 # === 4 (OPTIONAL) ===

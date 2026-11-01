@@ -1214,6 +1214,11 @@ def install_eigen3() -> None:
     apt_install(["libeigen3-dev"])
 
 
+# Standalone Asio headers: the ACSL flightstack's UDP driver includes <asio.hpp>, and SIL builds the flightstack on this PC.
+def install_asio() -> None:
+    apt_install(["libasio-dev"])
+
+
 def install_irrlicht() -> None:
     apt_install(["libirrlicht1.8", "libirrlicht-dev", "libirrlicht-doc"])
 
@@ -1576,6 +1581,7 @@ def make_install_items() -> list[InstallItem]:
         InstallItem("Clang", "LLVM compiler", lambda: command_exists("clang"), install_clang, "Ubuntu package"),
         InstallItem("CMake", "Build tools", cmake_is_sufficient, install_cmake, "Bundled source"),
         InstallItem("Eigen3", "Linear algebra", lambda: pkg_config_exists("eigen3"), install_eigen3, "Ubuntu package"),
+        InstallItem("Asio", "Flightstack UDP driver (SIL)", lambda: Path("/usr/include/asio.hpp").is_file(), install_asio, "Ubuntu package"),
         InstallItem("Irrlicht", "3D engine", lambda: dpkg_package_installed("libirrlicht-dev") or pkg_config_exists("irrlicht"), install_irrlicht, "Ubuntu package"),
         InstallItem("Blaze", "C++ math headers", lambda: Path("/usr/local/include/blaze").is_dir(), install_blaze, "Bundled source"),
         InstallItem("Boost", "C++ libraries", lambda: pkg_config_exists("boost") or Path("/usr/include/boost/version.hpp").is_file() or Path("/usr/local/include/boost/version.hpp").is_file(), install_boost, "Bundled source"),
@@ -1691,7 +1697,9 @@ def build_chrono_ros_messages(distribution: str) -> None:
         f"cd {str(workspace)!r}; "
         f"colcon build --parallel-workers {build_jobs()}"
     )
-    run(["bash", "-lc", shell_command], cwd=workspace)
+    # Build as the invoking user, not root: root-owned build/install/log make later user builds fail
+    # (PermissionError), and `sudo colcon` cannot fix it because sudo drops the sourced ROS environment.
+    run(_as_invoking_user(["bash", "-lc", shell_command]), cwd=workspace)
 
 
 def ros_workspace_has_generated_output(workspace: Path) -> bool:

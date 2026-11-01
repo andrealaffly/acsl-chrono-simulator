@@ -1,0 +1,170 @@
+# **********************************************************************************************************************
+ # Copyright (c) 2025 Giri M. Kumar, Andrea L'Afflitto. All rights reserved.
+ #
+ # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ # following conditions are met:
+ #
+ # 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+ #    disclaimer.
+ #
+ # 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+ #    following disclaimer in the documentation and/or other materials provided with the distribution.
+ #
+ # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+ #    products derived from this software without specific prior written permission.
+ #
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ # INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# **********************************************************************************************************************
+
+########################################################################################################################
+# GA tuner config
+#
+# Defaults for python-modules/ga/run_ga.py. A session file (written by the GUI's Genetic Algorithm page, or by hand and
+# passed with --session) is deep-merged on top of this file, so a session only needs to list what it changes --
+# usually just "tune".
+#
+# NOTES:
+# - The platform and controller are never set here: they are read from config/sim-config.yaml, exactly like the
+#   simulator does, and the gains file is chrono-assets/parameters/<platform>/<CONTROLLER>/gains_<CONTROLLER>.json.
+# - Only the outer loop is scored: position error, velocity error and effort (saturated normalized thrust).
+# - The resolved config (this file + session) is saved into sim-log/<platform>/ga/<timestamp>/session.yaml.
+# - Edited on the GUI's Genetic Algorithm page (Settings tab), or by hand. Saved and loaded with missions
+#   (config/<mission>/ga-config.yaml), like the other config files.
+########################################################################################################################
+
+# ============================================================================
+# Optimizer (pymoo)
+# ============================================================================
+algorithm:
+  # nsga2 -> Pareto front over the three objectives
+  # de    -> differential evolution on the weighted sum of the objectives
+  # ga    -> genetic algorithm on the weighted sum of the objectives
+  name: nsga2
+
+  # Candidates per generation
+  population_size: 20
+
+  # Number of generations (the first generation is the initial population)
+  generations: 10
+
+  # Random seed for reproducible sessions, or null for a random one
+  seed: null
+
+# ============================================================================
+# Objectives
+# ============================================================================
+objectives:
+  # Objective weights
+  # Weights for the weighted sum (de/ga) and for picking the single best
+  # solution off the Pareto front (nsga2). Every objective is normalized by the
+  # baseline dry run first, so a value of 1.0 means "as good as the baseline".
+  weights:
+    position: 1.0
+    velocity: 0.1
+    effort: 0.1
+
+  # Normalized objectives are capped here so one blown-up metric can't dominate
+  max_normalized: 100.0
+
+  # Samples before this time are ignored (take-off transient), in seconds
+  ignore_initial_seconds: 0.0
+
+  # Normalized thrust samples at or below / at or above these values count as
+  # saturated (recorded in history.csv, not optimized)
+  saturation_low: 0.01
+  saturation_high: 0.99
+
+# ============================================================================
+# Crash detection and penalty
+# ============================================================================
+crash:
+  # A run is treated as crashed once ||position error|| stays above this many
+  # meters for hold_seconds, or as soon as any scored value is NaN/inf
+  position_error_threshold: 2.0
+  hold_seconds: 0.5
+
+  # Crashed runs score penalty_base * (1 + time_deficit_ratio) on every
+  # objective, i.e. between penalty_base and 2 * penalty_base. Keep this well
+  # above max_normalized so any completed run beats any crashed one.
+  penalty_base: 1000.0
+
+  # A log that ends more than this many seconds before the baseline's does
+  # (killed run, simulator error) is scored like a crash at its last sample
+  time_tolerance_seconds: 0.5
+
+# ============================================================================
+# Simulation runs
+# ============================================================================
+runner:
+  # Maximum number of simulations running at once
+  concurrent_runs: 3
+
+  # Minimum time between two launches. A run is also only considered started
+  # once it has copied its gains into its log folder, so the next candidate's
+  # gains are never written before the previous run has read its own.
+  stagger_seconds: 1.0
+
+  # Give up on a run that hasn't copied its gains after this many seconds
+  start_timeout_seconds: 180.0
+
+  # Kill a run that takes longer than this many seconds in total (0 = no limit)
+  run_timeout_seconds: 0.0
+
+  # How many times a candidate is re-queued if its logged gains don't match
+  max_retries: 2
+
+  # Relative difference allowed between the two baseline dry runs before a
+  # repeatability warning is printed
+  repeatability_tolerance: 0.001
+
+# ============================================================================
+# Controller log contract
+# IMPORTANT: A controller can only be tuned if its controller_log.log header
+#            contains these exact column names.
+# ============================================================================
+columns:
+  time: "Controller Time [s]"
+  position_error:
+    - "Error in x [m]"
+    - "Error in y [m]"
+    - "Error in z [m]"
+  velocity_error:
+    - "Error in vx [m/s]"
+    - "Error in vy [m/s]"
+    - "Error in vz [m/s]"
+  # Every column matching this regular expression is a motor's saturated
+  # normalized thrust (0-1). The group captures the motor number; the numbers
+  # must run 1..N without gaps, so any motor count works.
+  thrust_pattern: "^Normalized Thrust (\\d+) \\[-\\]$"
+
+# ============================================================================
+# Gains selection
+# ============================================================================
+# Entries whose dotted path (e.g. "FILTERS.A_filter_mu") matches any of these
+# case-insensitive glob patterns are never offered for tuning
+exclude_patterns:
+  - "*filter*"
+
+# Default search range: every gene may move between value / bound_factor and
+# value * bound_factor (sign is always kept)
+default_bound_factor: 10.0
+
+# What to tune. Each item is a dotted path into the gains JSON plus a mode:
+#   scaling  - the entry's scaling_coef (one gene)
+#   diagonal - each nonzero diagonal element of a square matrix
+#   full     - every Cholesky element of a symmetric positive-definite matrix
+#   elements - each nonzero element of any matrix
+#   value    - a plain number
+# and an optional bound_factor. Run "python3 python-modules/ga/run_ga.py --list"
+# to see every entry of the active controller and the modes it allows.
+# Example:
+#   tune:
+#     - {path: TRANSLATIONAL.KP_translational, mode: diagonal}
+#     - {path: TRANSLATIONAL.Gamma_x_translational, mode: scaling, bound_factor: 5.0}
+tune: []

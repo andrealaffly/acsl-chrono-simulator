@@ -49,6 +49,9 @@ mode:
   # Set to true to use the biplane frame in control computation
   enable_biplane_frame_data: false
 
+  # ROS 2 domain ID of the SIL/HIL link. Must match LOCKSTEP_DOMAIN_ID in the flightstack's utils/start_lockstep.sh
+  ros_domain_id: 49
+
   # Set to true to enable wrapper mode
   enable_wrapper: false
 
@@ -62,6 +65,9 @@ debug:
   # Set to true if you want to log the uav chassis and prop state data to file
   log_physics: true
 
+  # Set to true if you want to log the network timing data in HIL/SIL mode to file
+  log_network: true
+  
   # Set to true if you want to stop the simulation at a given time (in seconds)
   sim_debug_stop: false
 

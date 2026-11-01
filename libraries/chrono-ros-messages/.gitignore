@@ -2,3 +2,8 @@
 *
 !.gitignore
 !src/
+
+# acsl_lockstep_interfaces is a normal tracked folder (not a submodule like the two packages above), so it has to be
+# un-ignored explicitly. It must stay IDENTICAL to the copy in ACSL-flightstack-winged/src/acsl_lockstep_interfaces.
+!src/acsl_lockstep_interfaces/
+!src/acsl_lockstep_interfaces/**

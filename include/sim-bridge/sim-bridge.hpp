@@ -46,6 +46,7 @@
 #include "sim-environment.hpp"              // Import the header file for the ENV API
 #include "sim-traj-selection.hpp"           // Import the header file for the Trajectory selection module
 #include "sim-controllers.hpp"              // Import the header file for the controllers
+#include "sim-lockstep.hpp"                 // Import the lockstep client to the flightstack (HIL / SIL)
 #include <random>                           // Import the random number generator for random geofenced origin selection
 #include "chrono/physics/ChBodyEasy.h"      // Import for the box to show geofencing
 
@@ -127,6 +128,11 @@ public:
     // ------------------------------------------------------------------------
     void EverPause();
 
+    // ------------------------------------------------------------------------
+    // Function: HIL / SIL wait gate. Renders only (no physics step) until the
+    //           flightstack is up, then handshakes. Exits on rejection.
+    // ------------------------------------------------------------------------
+    void WaitForFlightstack();
 
 private:
 
@@ -156,6 +162,12 @@ private:
     // Function: Updates the actuator control from the controller
     // ------------------------------------------------------------------------
     void UpdateControlAction();
+
+    // ------------------------------------------------------------------------
+    // Function: HIL / SIL control. Sends time + state + reference to the
+    //           flightstack, blocks for the 8 motor thrusts, applies them.
+    // ------------------------------------------------------------------------
+    void UpdateControlActionLockstep();
 
     // ------------------------------------------------------------------------
     // Function: Updates the physics system for the acsl physics simulator
@@ -209,6 +221,7 @@ private:
     // Boolean for telling the system what to do
     // ------------------------------------------------------------------------
     bool efsl;                          // <- Stands for enable flightstack loop.
+    int ros_domain_id;                  // <- ROS 2 domain ID of the SIL/HIL link.
     bool enable_wing_aerodynamics;      // <- Stands for enable wing aerodynamics.
     bool enable_wing_aerodynamics_dbg;  // <- Stands for aerodynamics push terminal.
     bool enable_chassis_drag;           // <- Stands for enable chassis drag.
@@ -251,6 +264,7 @@ private:
     // Boolean for telling the system it's debugging configuration
     // ------------------------------------------------------------------------
     bool log2file;
+    bool log2fileLockstep;
     bool log2terminal;
     bool sim_debug_stop;
     double sim_stop_time;
@@ -318,6 +332,11 @@ private:
     // Unique pointer to store the CONTROLLER object.
     // ------------------------------------------------------------------------
     std::unique_ptr<::_acsl_::_control_::controller_base> m_ctrl;
+
+    // ------------------------------------------------------------------------
+    // Unique pointer to store the LOCKSTEP client (created only when efsl)
+    // ------------------------------------------------------------------------
+    std::unique_ptr<::_acsl_::_lockstep_::simlockstep> m_lockstep;
 
     // ------------------------------------------------------------------------
     // Realtime stepper object to track the simulation's real life duration

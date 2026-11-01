@@ -57,7 +57,7 @@ solver:
   EnableWarmStart: true
 
   # Size of each iteration step
-  StepSize: 1e-3
+  StepSize: 5e-3
 
   # Set to true to maintain soft real-time pacing for every simulation tick.
   # This feature is strongly recommended to be swithed off unless necessary.

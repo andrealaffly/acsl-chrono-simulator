@@ -1,0 +1,5 @@
+This is the default config for hardware/software-in-the-loop. The ROS2 Domain ID is 49. Message protocol version 2.0 (10/2026). 
+
+Note that the flighstack needs to be compiled with the same message protocol version and in LOCKSTEP mode in the global_config.hpp.
+
+The flighstack's start_lockstep.sh should have the same Domain ID as the sim-config.yaml file.
