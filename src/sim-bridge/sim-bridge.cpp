@@ -893,16 +893,7 @@ void simbridge::UpdateControlActionLockstep() {
         _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL step failed: ", message);
     }
 
-    // STEP 4 – Same motor disturbance rule as UpdateControlAction()
-    if (this->motor_disturbance.reduce_efficiency &&
-        this->m_sys.GetPhysicsSystem().GetChTime() >= this->motor_disturbance.time_of_disturbance) {
-        int motor = this->motor_disturbance.affected_motor;
-        if (motor >= 1 && motor <= 8) {
-            motors[motor - 1] *= this->motor_disturbance.total_efficiency;
-        }
-    }
-
-    // STEP 5 – Dispatch (motor N -> actuator N, as in UpdateControlAction())
+    // STEP 4 – Dispatch (motor N -> actuator N, as in UpdateControlAction())
     int propCount = m_uav->GetPropCount();
     if (propCount < 1 || propCount > 8) {
         _message_::SIMULATOR_ERROR("[SIMBRG]: ONLY 1-8 ACTUATORS SUPPORTED IN HIL / SIL. PROPS: ", propCount);
@@ -1427,6 +1418,14 @@ void simbridge::WaitForFlightstack()
     // Rigid-body mode needs u1..u4 at the COM; the flightstack only returns motor thrusts
     if (this->treat_as_rigid_body) {
         _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL with treat_as_rigid_body is not supported yet (flightstack sends motor thrusts only).");
+    }
+
+    // In HIL / SIL the motor failure is emulated by the flightstack (MotorFailureParams in flight_main_params.json),
+    // so the simulator's own motor disturbance must be off (otherwise the motor would be degraded twice)
+    if (this->motor_disturbance.reduce_efficiency) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL with motor_disturbances.reduce_efficiency = true is not supported. "
+                                   "Set it to false in sim-config.yaml and use MotorFailureParams in the flightstack's "
+                                   "flight_main_params.json instead.");
     }
 
     // 1. Lockstep client
