@@ -81,6 +81,7 @@ simlockstep::simlockstep(size_t domain_id, const std::filesystem::path& log_dir)
         handshake_client_ = node_->create_client<HandshakeSrv>("/acsl_lockstep/handshake");
         step_client_      = node_->create_client<StepSrv>("/acsl_lockstep/step");
         finish_client_    = node_->create_client<FinishSrv>("/acsl_lockstep/finish");
+        trajectory_client_ = node_->create_client<TrajectorySrv>("/acsl_lockstep/trajectory");
     } catch (const std::exception& e) {
         ::_acsl_::_message_::SIMULATOR_ERROR(
             "[SIMLKS]: Could not create the lockstep clients. Is libraries/chrono-ros-messages built "
@@ -120,6 +121,7 @@ simlockstep::~simlockstep()
     handshake_client_.reset();
     step_client_.reset();
     finish_client_.reset();
+    trajectory_client_.reset();
     node_.reset();
 
     if (owns_ros_init_ && rclcpp::ok()) {
@@ -134,7 +136,8 @@ bool simlockstep::IsServerUp() const
 {
     return handshake_client_->service_is_ready() && 
            step_client_->service_is_ready() && 
-           finish_client_->service_is_ready();
+           finish_client_->service_is_ready() &&
+           trajectory_client_->service_is_ready();
 }
 
 // =====================================================================================================================
@@ -173,6 +176,60 @@ HandshakeResult simlockstep::Handshake(const std::string& platform, const std::s
 }
 
 // =====================================================================================================================
+// UploadTrajectory: send the whole reference trajectory once, in chunks, so the flightstack can cache it
+// =====================================================================================================================
+bool simlockstep::UploadTrajectory(const std::vector<ReferenceSample>& samples, double dt, std::string& message)
+{
+    const size_t total = samples.size();
+    if (total == 0) {
+        message = "No trajectory samples to upload.";
+        return false;
+    }
+
+    for (size_t first = 0; first < total; first += trajectory_chunk_size_)
+    {
+        const size_t count = std::min(trajectory_chunk_size_, total - first);
+
+        // Package the chunk: the 8 fields flattened as [x0 y0 z0 x1 y1 z1 ...]
+        auto request = std::make_shared<TrajectorySrv::Request>();
+        request->dt            = dt;
+        request->total_samples = static_cast<uint32_t>(total);
+        request->first_index   = static_cast<uint32_t>(first);
+
+        const std::array<std::vector<double>*, 8> fields = {
+            &request->ref_position, &request->ref_velocity, &request->ref_acceleration, &request->ref_angle,
+            &request->ref_angular_rate, &request->ref_angular_rate_dot, &request->ref_angular_velocity,
+            &request->ref_angular_acceleration};
+
+        for (size_t f = 0; f < fields.size(); ++f) {
+            fields[f]->reserve(3 * count);
+            for (size_t i = first; i < first + count; ++i) {
+                fields[f]->insert(fields[f]->end(), samples[i][f].begin(), samples[i][f].end());
+            }
+        }
+
+        auto result = trajectory_client_->async_send_request(request);
+
+        if (executor_->spin_until_future_complete(result.future, handshake_timeout_) != rclcpp::FutureReturnCode::SUCCESS) {
+            trajectory_client_->remove_pending_request(result.request_id);
+            message = "No trajectory upload reply from the flightstack within " +
+                      std::to_string(handshake_timeout_.count()) + " ms (chunk at sample " + std::to_string(first) + ").";
+            return false;
+        }
+
+        auto response = result.future.get();
+        if (!response->ok) {
+            message = response->message;
+            return false;
+        }
+    }
+
+    message = std::to_string(total) + " samples at dt = " + std::to_string(dt) + " s (t = 0 .. " +
+              std::to_string((total - 1) * dt) + " s)";
+    return true;
+}
+
+// =====================================================================================================================
 // Step: one controller evaluation on the flightstack. Blocks until the motors come back (strict lockstep)
 // =====================================================================================================================
 bool simlockstep::Step(const StepRequest& request, std::array<double, 8>& motors, std::string& message)
@@ -203,7 +260,7 @@ bool simlockstep::Step(const StepRequest& request, std::array<double, 8>& motors
         return false;
     }
 
-    // ok == false: non-finite controller output, or no accepted handshake on the flightstack side
+    // ok == false: non-finite controller output, incomplete trajectory upload, or no accepted handshake on the flightstack side
     if (!response->ok) {
         message = "Flightstack returned ok == false at seq " + std::to_string(seq_) + ", t = " +
                   std::to_string(request.time) + " s. See the flightstack terminal.";

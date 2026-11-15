@@ -187,6 +187,7 @@ controller:
     mrac_geometric: true
     mrac_geometric_na_ebci: false
     nmpc: false
+    nmpc_hybrid: false
   x8:
     mrac_omega: false
     mrac_geometric: false

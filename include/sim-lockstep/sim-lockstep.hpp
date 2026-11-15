@@ -56,6 +56,7 @@
 #include "acsl_lockstep_interfaces/srv/handshake.hpp"   // Lockstep handshake service (identical copy in both repos)
 #include "acsl_lockstep_interfaces/srv/step.hpp"        // Lockstep step service (identical copy in both repos)
 #include "acsl_lockstep_interfaces/srv/finish.hpp"      // Lockstep finish service (identical copy in both repos)
+#include "acsl_lockstep_interfaces/srv/trajectory.hpp"  // Lockstep trajectory service (identical copy in both repos)
 
 namespace _acsl_
 {
@@ -93,6 +94,11 @@ class simlockstep
         using StepSrv      = acsl_lockstep_interfaces::srv::Step;
         using StepRequest  = StepSrv::Request;
         using FinishSrv    = acsl_lockstep_interfaces::srv::Finish;
+        using TrajectorySrv = acsl_lockstep_interfaces::srv::Trajectory;
+
+        // One reference sample: the 8 trajectory fields in Step.srv / Trajectory.srv order
+        // (position, velocity, acceleration, angle, angular rate, angular rate dot, angular velocity, angular acc.)
+        using ReferenceSample = std::array<std::array<double, 3>, 8>;
 
         // domain_id: ROS 2 domain of the SIL/HIL link (mode.ros_domain_id in sim-config.yaml)
         // log_dir: run log folder for network.log and network_summary.log (empty = no network log)
@@ -117,6 +123,10 @@ class simlockstep
         // true = the flightstack computed exactly as many Steps as were sent. message = summary or reason
         bool Finish(double time, std::string& message);
 
+        // Blocking (up to handshake_timeout_ per chunk). Call once, after an accepted Handshake and before the first
+        // Step. samples[i] is the reference at t = i * dt. message = summary (true) or the reason (false)
+        bool UploadTrajectory(const std::vector<ReferenceSample>& samples, double dt, std::string& message);
+
         // Number of Steps completed (= seq of the next Step)
         uint64_t GetSeq() const { return seq_; }
 
@@ -131,6 +141,7 @@ class simlockstep
         rclcpp::Client<HandshakeSrv>::SharedPtr handshake_client_;       // /acsl_lockstep/handshake
         rclcpp::Client<StepSrv>::SharedPtr step_client_;                 // /acsl_lockstep/step
          rclcpp::Client<FinishSrv>::SharedPtr finish_client_;            // /acsl_lockstep/finish
+        rclcpp::Client<TrajectorySrv>::SharedPtr trajectory_client_;     // /acsl_lockstep/trajectory
         bool owns_ros_init_ = false;                                     // true if this class called rclcpp::init
         
         // Lockstep state
@@ -145,6 +156,9 @@ class simlockstep
         // Timeouts. Handshake: first contact. Step: generous for HIL over the LAN (a normal reply is ~1 ms)
         static constexpr std::chrono::milliseconds handshake_timeout_{2000};
         static constexpr std::chrono::milliseconds step_timeout_{1000};
+
+        // Samples per trajectory upload chunk (~190 KB per call)
+        static constexpr size_t trajectory_chunk_size_ = 1000;
 
 };
 

@@ -145,36 +145,14 @@ struct controller_internal_members {
 
 // =========================================================================================================
 // SO(3) helpers
-//   - hat:       3-vector to skew matrix such that hat(a) * b = a x b
-//   - exp_so3:   rotation vector (axis * angle) to rotation matrix (Rodrigues formula)
-//   - log_so3:   rotation matrix to rotation vector (inverse of exp_so3)
-//   - box_minus: 12 element error between two states [p_a - p_b; v_a - v_b; Log(R_b^T R_a); w_a - w_b]
+//   - skewSymmetric: 3-vector to skew matrix such that skewSymmetric(a) * b = a x b  (from sim-helpers)
+//   - expSO3:        rotation vector (axis * angle) to rotation matrix (Rodrigues)   (from sim-helpers)
+//   - logSO3:        rotation matrix to rotation vector (inverse of expSO3)          (from sim-helpers)
+//   - box_minus:     12 element error between two states [p_a - p_b; v_a - v_b; Log(R_b^T R_a); w_a - w_b]
 // =========================================================================================================
-// Skew symmetric (cross product) matrix of a
-inline Eigen::Matrix3d hat(const Eigen::Vector3d& a)
-{
-    Eigen::Matrix3d S;
-    S <<      0.0, -a.z(),  a.y(),
-            a.z(),    0.0, -a.x(),
-           -a.y(),  a.x(),    0.0;
-    return S;
-}
-
-// Rotation vector to rotation matrix
-inline Eigen::Matrix3d exp_so3(const Eigen::Vector3d& phi)
-{
-    const double angle = phi.norm();
-    // A zero rotation has no defined axis, so return the identity directly
-    if (angle < 1e-12) return Eigen::Matrix3d::Identity();
-    return Eigen::AngleAxisd(angle, phi / angle).toRotationMatrix();
-}
-
-// Rotation matrix to rotation vector (angle in [0, pi])
-inline Eigen::Vector3d log_so3(const Eigen::Matrix3d& R)
-{
-    const Eigen::AngleAxisd aa(R);
-    return aa.angle() * aa.axis();
-}
+using ::_shared_::_transformations_::skewSymmetric;
+using ::_shared_::_transformations_::expSO3;
+using ::_shared_::_transformations_::logSO3;
 
 // Error state of a relative to b. The rotation part is expressed in b's body frame, which matches the right
 // perturbation R = R_bar Exp(dtheta) used by the linearization.
@@ -183,7 +161,7 @@ inline Vec12 box_minus(const mpc_state& a, const mpc_state& b)
     Vec12 d;
     d << a.p - b.p,
          a.v - b.v,
-         log_so3(b.R.transpose() * a.R),
+         logSO3(b.R.transpose() * a.R),
          a.w - b.w;
     return d;
 }

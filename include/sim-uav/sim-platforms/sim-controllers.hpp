@@ -84,6 +84,7 @@
 #include "mrac-geometric-quadm.hpp"
 #include "mrac-geometric-na-ebci-quadm.hpp"
 #include "nmpc-quadm.hpp"
+#include "nmpc-hybrid-quadm.hpp"
 #include "mrac-omega-x8.hpp"
 #include "mrac-geometric-x8.hpp"
 
@@ -163,6 +164,7 @@ struct controllers
         bool mrac_geometric{};          // MRAC geometric controller for QUADM
         bool mrac_geometric_na_ebci{};  // MRAC geometric with non-adaptive ebci controller for QUADM
         bool nmpc{};                    // NMPC controller for QUADM
+        bool nmpc_hybrid{};             // NMPC + hybrid MRAC controller for QUADM
     } quadm;
     
     // -------------------------------------------------------------------------
@@ -198,6 +200,7 @@ struct controllers
             {"quadm", "mrac_geometric", quadm.mrac_geometric},
             {"quadm", "mrac_geometric_na_ebci", quadm.mrac_geometric_na_ebci},
             {"quadm", "nmpc", quadm.nmpc},
+            {"quadm", "nmpc_hybrid", quadm.nmpc_hybrid},
             {"x8", "mrac_omega", x8.mrac_omega},
             {"x8", "mrac_geometric", x8.mrac_geometric},
         };
@@ -298,6 +301,10 @@ struct controllers
         else if (active.first == "quadm" && active.second == "nmpc") {
             _message_::SIMULATOR_INFO("[SIMCTL]: ATTACHING NMPC CONTROLLER TO QUADM");
             return std::make_unique< ::_acsl_::_quadm_::_nmpc_::nmpc >(logger, trajectory);
+        }
+        else if (active.first == "quadm" && active.second == "nmpc_hybrid") {
+            _message_::SIMULATOR_INFO("[SIMCTL]: ATTACHING NMPC HYBRID CONTROLLER TO QUADM");
+            return std::make_unique< ::_acsl_::_quadm_::_nmpc_hybrid_::nmpc_hybrid >(logger, trajectory);
         }
         // [Add more else if branches for other controllers as needed]
         // e.g., x8copter and tailsitter controllers

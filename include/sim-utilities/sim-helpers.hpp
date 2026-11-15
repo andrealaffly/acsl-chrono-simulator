@@ -206,6 +206,37 @@ Eigen::Matrix3d jacobianMatrixDerivative(
  */
 Eigen::Matrix3d skewSymmetric(Eigen::Matrix<double, 3, 1> v);
 
+/**
+ * @brief Extracts the 3d vector from a skew symmetric matrix (inverse of skewSymmetric).
+ *
+ * Only the lower triangular entries are read, so the input is assumed to be skew symmetric.
+ *
+ * @param m The 3x3 skew symmetric matrix.
+ * @return Eigen::Vector3d The vector v such that skewSymmetric(v) = m.
+ */
+Eigen::Vector3d veeMap(const Eigen::Matrix3d& m);
+
+/**
+ * @brief Computes the rotation matrix from a rotation vector (exponential map of SO(3)).
+ *
+ * Uses the Rodrigues formula, where the rotation vector is phi = angle * axis.
+ * A zero rotation (|phi| < 1e-12) has no defined axis, so the identity is returned.
+ *
+ * @param phi Rotation vector (axis * angle) in radians.
+ * @return Eigen::Matrix3d The rotation matrix Exp(phi).
+ */
+Eigen::Matrix3d expSO3(const Eigen::Vector3d& phi);
+
+/**
+ * @brief Computes the rotation vector from a rotation matrix (logarithmic map of SO(3)).
+ *
+ * Inverse of expSO3. The returned rotation vector has its angle in [0, pi].
+ *
+ * @param R Rotation matrix (must be a valid element of SO(3)).
+ * @return Eigen::Vector3d The rotation vector Log(R) = angle * axis, in radians.
+ */
+Eigen::Vector3d logSO3(const Eigen::Matrix3d& R);
+
 } // namespace _transformations_
 
 // ============================================================================================================

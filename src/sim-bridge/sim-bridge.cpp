@@ -1467,6 +1467,31 @@ void simbridge::WaitForFlightstack()
     }
 
     _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL handshake accepted. ", message);
+
+    // 4. Trajectory upload: sample the whole trajectory once at the step size (t = 0 .. Tmax, in time order) so the
+    //    flightstack can answer reference requests at any time from a cache (MPC horizons) with no per-step traffic.
+    const double dt = this->m_sys.GetPhyConfig().StepSize;
+    const size_t n_samples = static_cast<size_t>(std::ceil(this->m_trj->GetTmax() / dt)) + 1;
+
+    auto to3 = [](const Eigen::Vector3d& v) { return std::array<double, 3>{v.x(), v.y(), v.z()}; };
+    std::vector<::_acsl_::_lockstep_::simlockstep::ReferenceSample> samples(n_samples);
+    for (size_t i = 0; i < n_samples; ++i)
+    {
+        this->m_trj->UpdateModule(static_cast<double>(i) * dt);
+        samples[i] = {to3(this->m_trj->GetPosition()),   to3(this->m_trj->GetVelocity()),
+                      to3(this->m_trj->GetAcceleration()), to3(this->m_trj->GetEulerAngle()),
+                      to3(this->m_trj->GetEulerRate()),  to3(this->m_trj->GetEulerAcc()),
+                      to3(this->m_trj->GetAngVel()),     to3(this->m_trj->GetAngAcc())};
+    }
+
+    // Back to the start so the run evaluates the trajectory in time order from t = 0, as in MIL
+    this->m_trj->UpdateModule(0.0);
+
+    if (!this->m_lockstep->UploadTrajectory(samples, dt, message)) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL trajectory upload failed: ", message);
+    }
+
+    _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL trajectory uploaded. ", message);
 }
 
 // Prototype ever run function -  will house the logic for all the modes.

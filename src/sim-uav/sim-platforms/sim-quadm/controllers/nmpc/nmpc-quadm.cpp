@@ -285,7 +285,7 @@ void nmpc::compute_reference_horizon()
     // Inverts R+ = R Exp(w dt) from the prediction model (finite difference on SO(3))
     for (int k = 0; k < NH; ++k)
     {
-        cim.X_ref[k].w = log_so3(cim.X_ref[k].R.transpose() * cim.X_ref[k + 1].R) / cip.dt_mpc;
+        cim.X_ref[k].w = logSO3(cim.X_ref[k].R.transpose() * cim.X_ref[k + 1].R) / cip.dt_mpc;
     }
     // No next orientation after the last step, so hold the previous angular velocity
     cim.X_ref[NH].w = cim.X_ref[NH - 1].w;
@@ -324,7 +324,7 @@ mpc_state nmpc::predict_step(const mpc_state& x, const Eigen::Matrix<double, NU,
     mpc_state n;
     n.p = x.p + x.v * dt;                                                   // Position
     n.v = x.v + acc * dt;                                                   // Velocity
-    n.R = x.R * exp_so3(x.w * dt);                                          // Attitude
+    n.R = x.R * expSO3(x.w * dt);                                           // Attitude
     n.w = x.w + cip.J_inv * (tau - x.w.cross(cip.J * x.w)) * dt;            // Euler's rotation equation
     return n;
 }
@@ -340,10 +340,10 @@ void nmpc::linearize(const mpc_state& x, const Eigen::Matrix<double, NU, 1>& f, 
     // State Jacobian (starts at identity: every error carries over to the next step, then the couplings are added)
     A.setIdentity();
     A.block<3, 3>(0, 3) = I3 * dt;                                                          // dp     <- dv
-    A.block<3, 3>(3, 6) = (T / MASS) * x.R * hat(e3) * dt;                                  // dv     <- dtheta
-    A.block<3, 3>(6, 6) = exp_so3(x.w * dt).transpose();                                    // dtheta <- dtheta
+    A.block<3, 3>(3, 6) = (T / MASS) * x.R * skewSymmetric(e3) * dt;                        // dv     <- dtheta
+    A.block<3, 3>(6, 6) = expSO3(x.w * dt).transpose();                                     // dtheta <- dtheta
     A.block<3, 3>(6, 9) = I3 * dt;                                                          // dtheta <- dw (first order)
-    A.block<3, 3>(9, 9) += cip.J_inv * (hat(cip.J * x.w) - hat(x.w) * cip.J) * dt;          // dw     <- dw
+    A.block<3, 3>(9, 9) += cip.J_inv * (skewSymmetric(cip.J * x.w) - skewSymmetric(x.w) * cip.J) * dt;  // dw     <- dw
 
     // Input Jacobian with respect to [T; tau]
     Eigen::Matrix<double, NX, 4> B_wrench = Eigen::Matrix<double, NX, 4>::Zero();

@@ -199,7 +199,47 @@ Eigen::Matrix3d skewSymmetric(Eigen::Matrix<double, 3, 1> v) {
           v(2),  0.0, -v(0),
          -v(1), v(0),   0.0;
 
-    return m;         
+    return m;
+}
+
+// Extracts the vector v from a skew symmetric matrix m (inverse of skewSymmetric)
+Eigen::Vector3d veeMap(const Eigen::Matrix3d& m)
+{
+    // Skew-Symmetric matrix structure
+    // m = [  0 -v3  v2]
+    //     [ v3   0 -v1]
+    //     [-v2  v1   0]
+    //
+    // v = [v1 v2 v3]^T = [m(2,1) m(0,2) m(1,0)]^T
+    Eigen::Vector3d v;
+
+    v << m(2, 1), m(0, 2), m(1, 0);
+
+    return v;
+}
+
+// Computes the rotation matrix from a rotation vector (exponential map of SO(3))
+Eigen::Matrix3d expSO3(const Eigen::Vector3d& phi)
+{
+    // Rodrigues formula through Eigen's angle-axis representation
+    // phi = angle * axis, where angle = |phi| and axis = phi / |phi|
+    const double angle = phi.norm();
+
+    // A zero rotation has no defined axis, so return the identity directly
+    if (angle < 1e-12) {
+        return Eigen::Matrix3d::Identity();
+    }
+
+    return Eigen::AngleAxisd(angle, phi / angle).toRotationMatrix();
+}
+
+// Computes the rotation vector from a rotation matrix (logarithmic map of SO(3))
+Eigen::Vector3d logSO3(const Eigen::Matrix3d& R)
+{
+    // Inverse of expSO3: R -> angle * axis, with the angle in [0, pi]
+    const Eigen::AngleAxisd aa(R);
+
+    return aa.angle() * aa.axis();
 }
 
 } // namespace _transformations_

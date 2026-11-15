@@ -535,7 +535,7 @@ void mrac_hybrid::compute_translational_control_in_I()
 
   // Adaptive control law
   cim.mu_tran_adaptive << csm.K_hat_x_tran.transpose() * cim.x_tran
-                        + csm.K_hat_r_tran.transpose() * cim.r_cmd_tran;
+                        + csm.K_hat_r_tran.transpose() * cim.r_cmd_tran
                         - csm.Theta_hat_tran.transpose() * cim.augmented_outer_loop_regressor
                         - csm.Theta1_hat_tran.transpose() * cim.outer_loop_regressor_DCM;
 
@@ -952,7 +952,11 @@ void mrac_hybrid::post_integration_hybrid_algorithm()
   // Assign the y's -> Use the dxdt function to reassign the y rk4 vector.
   int index = 18;
   ::_shared_::_serialize_::assignElementsToDxdt(csm.x_tran_ref, y, index);
-  index = 202;
+  // integral_eQe_translational sits at offset 135 in the rk4 vector (see the layout in model()):
+  //   filters 12 | e_tran_pos_I 3 | e_tran_pos_ref_I 3 | x_tran_ref 6 | K_hat_x_tran 18 | K_hat_r_tran 9 |
+  //   Theta_hat_tran 12 | Theta1_hat_tran 12 | e_omega_ref_I 3 | omega_ref 3 | K_hat_x_rot 9 | K_hat_r_rot 9 |
+  //   Theta_hat_rot 36  -> 135
+  index = 135;
   ::_shared_::_serialize_::assignElementsToDxdt(csm.integral_eQe_translational, y, index);
 
   // Assign the dy's -> Use the dxdt function to reassign the dy rk4 vector
