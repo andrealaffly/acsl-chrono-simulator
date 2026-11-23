@@ -56,6 +56,11 @@
 #     comments still drive the remaining exclusive-checkbox groups (collision
 #     system, trajectory module).
 #
+#     The "Gains" tab (before Wrapper) loads the gains file of the controller
+#     currently selected on the Simulator tab -- the file single and wrapper
+#     runs fly with -- for editing in place, with its own Save button (see
+#     gains_view.py).
+#
 #     Two save paths:
 #       - Each tab's own "Save <file>" button writes that file in place.
 #       - The top "Save All" button asks for a name and writes every config
@@ -69,14 +74,22 @@ from __future__ import annotations
 import shutil
 import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import ttk
 from typing import Callable, Optional
 
 from .. import dialogs, theme
-from ..yaml_form import Document, Field, Section, ValueType, humanize
+from ..gains_view import GainsEditor, gains_path
+from ..widgets import ScrollableFrame
+from ..yaml_form import Document, Field, Section, ValueType, humanize, is_valid_value
 from .base import Page
 
 CONFIG_FILES = ["sim-config.yaml", "phy-config.yaml", "vis-config.yaml", "wrapper-config.yaml"]
+
+# Saved and loaded with a mission like CONFIG_FILES, but not edited on this
+# page (ga-config.yaml belongs to the Genetic Algorithm page). Optional: a
+# mission saved before a file was added here simply doesn't have it, and
+# loading that mission leaves the active copy alone.
+MISSION_EXTRA_FILES = ["ga-config.yaml"]
 
 # The mission living directly in config/ (as opposed to a named config/<name>/
 # folder saved via Save Mission).
@@ -85,6 +98,9 @@ DEFAULT_MISSION = "Default"
 # Written alongside a mission's config files, holding the free-text
 # description entered when the mission was saved.
 MISSION_DESCRIPTION_FILENAME = "mission.txt"
+
+# The Gains tab is placed right before this file's tab.
+GAINS_TAB_BEFORE = "wrapper-config.yaml"
 
 TAB_LABELS = {
     "sim-config.yaml": "Simulator",
@@ -161,43 +177,6 @@ class _ExclusiveGroup:
                 other.set(False)
 
 
-class _ScrollableFrame(ttk.Frame):
-    """A vertically scrollable container, styled to match the dark theme."""
-
-    def __init__(self, parent: tk.Widget) -> None:
-        super().__init__(parent, style="App.TFrame")
-        self._canvas = tk.Canvas(self, bg=theme.BG, highlightthickness=0, borderwidth=0)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=self._canvas.yview, style="Vertical.TScrollbar")
-        self._canvas.configure(yscrollcommand=scrollbar.set)
-        self._canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-        self.body = ttk.Frame(self._canvas, style="App.TFrame", padding=(4, 0, 4, 0))
-        self._window = self._canvas.create_window((0, 0), window=self.body, anchor="nw")
-        self.body.bind("<Configure>", lambda _e: self._canvas.configure(scrollregion=self._canvas.bbox("all")))
-        self._canvas.bind("<Configure>", lambda e: self._canvas.itemconfigure(self._window, width=e.width))
-        self._canvas.bind("<Enter>", lambda _e: self._bind_wheel())
-        self._canvas.bind("<Leave>", lambda _e: self._unbind_wheel())
-
-    def _bind_wheel(self) -> None:
-        self._canvas.bind_all("<MouseWheel>", self._on_wheel)
-        self._canvas.bind_all("<Button-4>", self._on_wheel)
-        self._canvas.bind_all("<Button-5>", self._on_wheel)
-
-    def _unbind_wheel(self) -> None:
-        self._canvas.unbind_all("<MouseWheel>")
-        self._canvas.unbind_all("<Button-4>")
-        self._canvas.unbind_all("<Button-5>")
-
-    def _on_wheel(self, event: tk.Event) -> None:
-        if getattr(event, "num", None) == 4:
-            self._canvas.yview_scroll(-3, "units")
-        elif getattr(event, "num", None) == 5:
-            self._canvas.yview_scroll(3, "units")
-        else:
-            self._canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
-
-
 class _FileForm:
     """Holds one config file's parsed Document plus its live tk.Variables."""
 
@@ -224,6 +203,7 @@ class SettingsPage(Page):
         self.forms: dict[str, _FileForm] = {}
         self._notebook: Optional[ttk.Notebook] = None
         self._tab_ids: dict[str, str] = {}
+        self._gains: Optional[GainsEditor] = None
         self.current_mission = DEFAULT_MISSION
         self._mission_label: Optional[ttk.Label] = None
 
@@ -244,15 +224,15 @@ class SettingsPage(Page):
 
         self._notebook = ttk.Notebook(root, style="TNotebook")
         self._notebook.pack(fill="both", expand=True)
+        self._notebook.bind("<<NotebookTabChanged>>", lambda _e: self._on_tab_changed())
 
-        for filename in CONFIG_FILES:
-            self._build_file_tab(filename)
+        self._build_tabs()
         self._update_mission_label()
 
         return root
 
     def has_unsaved_changes(self) -> bool:
-        return any(form.dirty for form in self.forms.values())
+        return any(form.dirty for form in self.forms.values()) or (self._gains is not None and self._gains.dirty)
 
     # --- Missions -------------------------------------------------------
     # config/ itself is always "the active configuration" -- the one thing
@@ -276,7 +256,18 @@ class SettingsPage(Page):
         default_dir.mkdir(parents=True, exist_ok=True)
         for filename in CONFIG_FILES:
             shutil.copy2(self.config_dir / filename, default_dir / filename)
+        self._copy_extra_files(self.config_dir, default_dir)
         (default_dir / MISSION_DESCRIPTION_FILENAME).write_text("The original baseline configuration.\n", encoding="utf-8")
+
+    def _other_pages(self) -> list:
+        return [page for page in self.shell.pages if page is not self]
+
+    @staticmethod
+    def _copy_extra_files(source_dir: Path, target_dir: Path) -> None:
+        """Copy whichever MISSION_EXTRA_FILES exist in source_dir."""
+        for filename in MISSION_EXTRA_FILES:
+            if (source_dir / filename).is_file():
+                shutil.copy2(source_dir / filename, target_dir / filename)
 
     def _list_missions(self) -> list[str]:
         names = []
@@ -304,10 +295,10 @@ class SettingsPage(Page):
             self._mission_label.configure(text=f"Mission: {self.current_mission}")
 
     def _load_mission(self) -> None:
-        save_choice = messagebox.askyesnocancel(
+        save_choice = dialogs.ask_yes_no_cancel(
+            self.shell.root,
             "Save current configuration?",
             "Save the current configuration as a mission before loading a different one?",
-            parent=self.shell.root,
         )
         if save_choice is None:
             return
@@ -316,7 +307,7 @@ class SettingsPage(Page):
 
         names = self._list_missions()
         if not names:
-            messagebox.showinfo("No missions saved", "There are no saved missions yet. Use Save Mission to create one.", parent=self.shell.root)
+            dialogs.show_info(self.shell.root, "No missions saved", "There are no saved missions yet. Use Save Mission to create one.")
             return
         descriptions = {name: self._mission_description(name) for name in names}
         choice = dialogs.choose_from_list(
@@ -334,7 +325,7 @@ class SettingsPage(Page):
     def _delete_missions(self) -> None:
         names = [name for name in self._list_missions() if name != DEFAULT_MISSION]
         if not names:
-            messagebox.showinfo("No missions to delete", "There are no saved missions (other than Default) to delete.", parent=self.shell.root)
+            dialogs.show_info(self.shell.root, "No missions to delete", "There are no saved missions (other than Default) to delete.")
             return
         descriptions = {name: self._mission_description(name) for name in names}
         chosen = dialogs.choose_multiple_from_list(
@@ -346,10 +337,12 @@ class SettingsPage(Page):
         )
         if not chosen:
             return
-        if not messagebox.askyesno(
+        if not dialogs.ask_yes_no(
+            self.shell.root,
             "Delete missions",
             f"Permanently delete {len(chosen)} mission(s): {', '.join(chosen)}?\n\nThis cannot be undone.",
-            parent=self.shell.root,
+            yes="Delete",
+            no="Cancel",
         ):
             return
 
@@ -359,7 +352,7 @@ class SettingsPage(Page):
                 shutil.rmtree(self._mission_dir(name))
                 deleted.append(name)
             except OSError as error:
-                messagebox.showerror("Delete failed", f"Could not delete '{name}': {error}", parent=self.shell.root)
+                dialogs.show_error(self.shell.root, "Delete failed", f"Could not delete '{name}': {error}")
 
         if self.current_mission in deleted:
             self.current_mission = "(unknown)"
@@ -368,27 +361,43 @@ class SettingsPage(Page):
             self.shell.set_status(f"Deleted {len(deleted)} mission(s): {', '.join(deleted)}.")
 
     def _apply_mission(self, name: str) -> None:
+        # The tabs are rebuilt below, which would drop unsaved gains edits.
+        if self._gains is not None and self._gains.dirty and dialogs.ask_yes_no(
+            self.shell.root, "Save gains?", f"Save your changes to {self._gains.path.name} before loading '{name}'?", yes="Save", no="Discard"
+        ):
+            self._gains.save()
         mission_dir = self._mission_dir(name)
         for filename in CONFIG_FILES:
             shutil.copy2(mission_dir / filename, self.config_dir / filename)
+        self._copy_extra_files(mission_dir, self.config_dir)
+        # Pages editing one of those extra files (the GA page's Settings tab)
+        # show the mission's version from now on, like the tabs rebuilt below.
+        for page in self._other_pages():
+            page.reload_config()
 
-        for tab_id in self._tab_ids.values():
+        for tab_id in self._notebook.tabs():
             self._notebook.forget(tab_id)
         self.forms.clear()
         self._tab_ids.clear()
         self.current_mission = name
-        for filename in CONFIG_FILES:
-            self._build_file_tab(filename)
+        self._build_tabs()
         self._update_mission_label()
         self.shell.set_status(f"Loaded mission '{name}' into config/.")
 
     # --- Tab construction ---------------------------------------------------
+    def _build_tabs(self) -> None:
+        for filename in CONFIG_FILES:
+            if filename == GAINS_TAB_BEFORE:
+                self._gains = GainsEditor(self._notebook, on_dirty=self._on_gains_dirty)
+                self._notebook.add(self._gains, text="Gains")
+            self._build_file_tab(filename)
+
     def _build_file_tab(self, filename: str) -> None:
         path = self.config_dir / filename
         form = _FileForm(path)
         self.forms[filename] = form
 
-        scroller = _ScrollableFrame(self._notebook)
+        scroller = ScrollableFrame(self._notebook)
         self._notebook.add(scroller, text=TAB_LABELS.get(filename, filename))
         self._tab_ids[filename] = str(scroller)
 
@@ -421,6 +430,39 @@ class SettingsPage(Page):
             for path in paths:
                 mapping[path] = group
         return mapping
+
+    # --- Gains tab ---------------------------------------------------------
+    # Follows the Simulator tab's live (possibly unsaved) platform/controller
+    # choice: opening the tab loads that controller's gains file, unless it's
+    # the one already loaded (so edits survive switching tabs).
+    def _on_tab_changed(self) -> None:
+        if self._gains is not None and self._notebook.select() == str(self._gains):
+            self._load_selected_gains()
+
+    def _on_gains_dirty(self, dirty: bool) -> None:
+        self._notebook.tab(str(self._gains), text="Gains *" if dirty else "Gains")
+
+    def _load_selected_gains(self) -> None:
+        form = self.forms["sim-config.yaml"]
+        platform = self._platform_key_from_label(form.document, form.platform_var.get()) if form.platform_var else ""
+        prefix = f"controller.{platform}."
+        selected = [path[len(prefix):] for path, var in form.vars.items() if path.startswith(prefix) and var.get() is True]
+        path = gains_path(self.repo_dir, platform, selected[0]) if len(selected) == 1 else None
+        if path is not None and path == self._gains.path:
+            return
+
+        if self._gains.dirty:
+            choice = dialogs.ask_yes_no_cancel(
+                self.shell.root, "Save gains?", f"The controller changed. Save your changes to {self._gains.path.name} first?"
+            )
+            if choice is None:
+                return
+            if choice and not self._gains.save():
+                return
+        if path is None:
+            self._gains.load(None, "Gains", "Select exactly one controller on the Simulator tab to edit its gains.")
+        else:
+            self._gains.load(path, f"{humanize(platform)}  ·  {path.parent.name}", f"No gains file at {path}.")
 
     # --- Platform (dropdown) + Controller (platform-filtered) --------------
     # UAV platforms aren't a fixed list -- whatever boolean leaves exist
@@ -597,7 +639,7 @@ class SettingsPage(Page):
 
     def _on_entry_changed(self, filename: str, path: str, var: tk.Variable, value_type: ValueType, entry: ttk.Widget) -> None:
         if isinstance(entry, ttk.Entry):
-            valid = _is_valid(var.get(), value_type)
+            valid = is_valid_value(var.get(), value_type)
             entry.configure(style="Field.TEntry" if valid else "FieldInvalid.TEntry")
         self.forms[filename].dirty = True
         self._refresh_tab_title(filename)
@@ -612,7 +654,7 @@ class SettingsPage(Page):
         return [
             path
             for path, var in form.vars.items()
-            if isinstance(var, tk.StringVar) and not _is_valid(var.get(), form.document.fields[path].value_type)
+            if isinstance(var, tk.StringVar) and not is_valid_value(var.get(), form.document.fields[path].value_type)
         ]
 
     def _apply_vars_to_document(self, form: _FileForm) -> None:
@@ -641,7 +683,7 @@ class SettingsPage(Page):
     def _show_invalid_fields_error(self, filename: str, invalid_paths: list[str]) -> None:
         form = self.forms[filename]
         names = ", ".join(humanize(form.document.fields[p].key) for p in invalid_paths)
-        messagebox.showerror("Invalid value", f"Fix the following field(s) in {filename} before saving:\n\n{names}", parent=self.shell.root)
+        dialogs.show_error(self.shell.root, "Invalid value", f"Fix the following field(s) in {filename} before saving:\n\n{names}")
 
     def _save_mission(self) -> bool:
         """Write current edits to the active config/*.yaml, then copy that
@@ -655,18 +697,18 @@ class SettingsPage(Page):
                 self._show_invalid_fields_error(filename, invalid)
                 return False
 
-        name = simpledialog.askstring(
+        name = dialogs.ask_string(
+            self.shell.root,
             "Save mission",
             "Name this mission. It's saved as a folder under config/ "
-            f"(use '{DEFAULT_MISSION}' to update the protected baseline):",
-            initialvalue=self.current_mission,
-            parent=self.shell.root,
+            f"(use '{DEFAULT_MISSION}' to update the protected baseline).",
+            initial=self.current_mission,
         )
         if name is None:
             return False
         name = name.strip()
         if not name or "/" in name or "\\" in name or name in (".", ".."):
-            messagebox.showerror("Invalid name", "Please enter a simple mission name (no slashes).", parent=self.shell.root)
+            dialogs.show_error(self.shell.root, "Invalid name", "Please enter a simple mission name (no slashes).")
             return False
 
         description = dialogs.prompt_text(
@@ -680,15 +722,20 @@ class SettingsPage(Page):
 
         target_dir = self._mission_dir(name)
         if name == DEFAULT_MISSION and target_dir.exists():
-            if not messagebox.askyesno(
+            if not dialogs.ask_yes_no(
+                self.shell.root,
                 "Overwrite protected baseline",
                 "This will overwrite the protected 'Default' baseline you can always load back to. Continue?",
-                parent=self.shell.root,
             ):
                 return False
         elif target_dir.exists():
-            if not messagebox.askyesno("Mission exists", f"A mission named '{name}' already exists. Overwrite it?", parent=self.shell.root):
+            if not dialogs.ask_yes_no(self.shell.root, "Mission exists", f"A mission named '{name}' already exists. Overwrite it?"):
                 return False
+        # Unsaved edits on other pages to a file the mission carries (the GA
+        # page's Settings tab) go to config/ first, just like this page's own
+        # tabs below, so the mission includes them.
+        if not all(page.save_config() for page in self._other_pages()):
+            return False
         target_dir.mkdir(parents=True, exist_ok=True)
         (target_dir / MISSION_DESCRIPTION_FILENAME).write_text(description + "\n" if description else "", encoding="utf-8")
 
@@ -699,24 +746,10 @@ class SettingsPage(Page):
             shutil.copy2(form.document.path, target_dir / filename)  # -> config/<name>/<filename>, the snapshot
             form.dirty = False
             self._refresh_tab_title(filename)
+        self._copy_extra_files(self.config_dir, target_dir)
 
         self.current_mission = name
         self._update_mission_label()
         self.shell.set_status(f"Saved mission '{name}' (and updated the active configuration in config/).")
         return True
 
-
-def _is_valid(text: str, value_type: ValueType) -> bool:
-    if value_type is ValueType.INT:
-        try:
-            int(text.strip())
-            return True
-        except ValueError:
-            return False
-    if value_type is ValueType.FLOAT:
-        try:
-            float(text.strip())
-            return True
-        except ValueError:
-            return False
-    return True

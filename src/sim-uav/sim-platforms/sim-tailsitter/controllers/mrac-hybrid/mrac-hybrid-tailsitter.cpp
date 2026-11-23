@@ -535,7 +535,7 @@ void mrac_hybrid::compute_translational_control_in_I()
 
   // Adaptive control law
   cim.mu_tran_adaptive << csm.K_hat_x_tran.transpose() * cim.x_tran
-                        + csm.K_hat_r_tran.transpose() * cim.r_cmd_tran;
+                        + csm.K_hat_r_tran.transpose() * cim.r_cmd_tran
                         - csm.Theta_hat_tran.transpose() * cim.augmented_outer_loop_regressor
                         - csm.Theta1_hat_tran.transpose() * cim.outer_loop_regressor_DCM;
 
@@ -677,17 +677,17 @@ void mrac_hybrid::compute_u1_R_d()
   // Compute the desired body frame z axis
   cim.b3d = -cim.mu_tran_I / cim.u(0);
 
-  // Compute the desired "heading" vector 
-  cim.c1 << std::cos(cim.psi_user),
-            std::sin(cim.psi_user),
-              0.0;
+  // Compute the desired "lateral" (wingspan) vector, i.e. heading rotated by +90 deg about the vertical
+  cim.c2 << -1.0 * std::sin(cim.psi_user),
+            std::cos(cim.psi_user),
+            0.0;
 
-  // Construct an orthonormal triad
-  cim.n_hat = cim.b3d.cross(cim.c1);
+  // Construct an orthonormal triad (pin b2d to the wingspan so the triad stays well defined when b3d is horizontal)
+  cim.n_hat = cim.c2.cross(cim.b3d);
   cim.sigma = cim.n_hat.norm();
-  cim.b2d =  cim.n_hat / cim.sigma;
+  cim.b1d =  cim.n_hat / cim.sigma;
 
-  cim.b1d = cim.b2d.cross(cim.b3d);
+  cim.b2d = cim.b3d.cross(cim.b1d);
 
   // Construct the desired rotation matrix
   cim.R_d.col(0) = cim.b1d;
@@ -700,17 +700,17 @@ void mrac_hybrid::compute_u1_R_d()
   // compute b3d_dot
   cim.b3d_dot = -1.0 * (1/cim.mu_tran_I.norm()) * (I - cim.b3d * cim.b3d.transpose()) * cim.mu_tran_I_dot;
 
-  // compute b2d_dot
-  cim.c1_dot << -1.0 * cim.psi_dot_user * std::sin(cim.psi_user),
-                  cim.psi_dot_user * std::cos(cim.psi_user),
-                  0.0;
-
-  cim.n_hat_dot = cim.b3d_dot.cross(cim.c1) + cim.b3d.cross(cim.c1_dot);
-
-  cim.b2d_dot = (1/cim.sigma) * (I - cim.b2d * cim.b2d.transpose()) * cim.n_hat_dot;
-
   // compute b1d_dot
-  cim.b1d_dot = cim.b2d_dot.cross(cim.b3d) + cim.b2d.cross(cim.b3d_dot);
+  cim.c2_dot << -1.0 * cim.psi_dot_user * std::cos(cim.psi_user),
+                -1.0 * cim.psi_dot_user * std::sin(cim.psi_user),
+                0.0;
+
+  cim.n_hat_dot = cim.c2_dot.cross(cim.b3d) + cim.c2.cross(cim.b3d_dot);
+
+  cim.b1d_dot = (1/cim.sigma) * (I - cim.b1d * cim.b1d.transpose()) * cim.n_hat_dot;
+
+  // compute b2d_dot
+  cim.b2d_dot = cim.b3d_dot.cross(cim.b1d) + cim.b3d.cross(cim.b1d_dot);
 
   // assign to R_d_dot
   cim.R_d_dot.col(0) = cim.b1d_dot;
@@ -952,7 +952,11 @@ void mrac_hybrid::post_integration_hybrid_algorithm()
   // Assign the y's -> Use the dxdt function to reassign the y rk4 vector.
   int index = 18;
   ::_shared_::_serialize_::assignElementsToDxdt(csm.x_tran_ref, y, index);
-  index = 202;
+  // integral_eQe_translational sits at offset 135 in the rk4 vector (see the layout in model()):
+  //   filters 12 | e_tran_pos_I 3 | e_tran_pos_ref_I 3 | x_tran_ref 6 | K_hat_x_tran 18 | K_hat_r_tran 9 |
+  //   Theta_hat_tran 12 | Theta1_hat_tran 12 | e_omega_ref_I 3 | omega_ref 3 | K_hat_x_rot 9 | K_hat_r_rot 9 |
+  //   Theta_hat_rot 36  -> 135
+  index = 135;
   ::_shared_::_serialize_::assignElementsToDxdt(csm.integral_eQe_translational, y, index);
 
   // Assign the dy's -> Use the dxdt function to reassign the dy rk4 vector

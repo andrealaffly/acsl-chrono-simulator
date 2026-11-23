@@ -94,6 +94,24 @@ def _infer_type(value_text: str) -> tuple[ValueType, bool]:
     return ValueType.STRING, False
 
 
+def is_valid_value(text: str, value_type: ValueType) -> bool:
+    """Whether user-entered text is a valid value for a field of this type
+    (ints and floats must parse; anything else is accepted as-is)."""
+    if value_type is ValueType.INT:
+        try:
+            int(text.strip())
+            return True
+        except ValueError:
+            return False
+    if value_type is ValueType.FLOAT:
+        try:
+            float(text.strip())
+            return True
+        except ValueError:
+            return False
+    return True
+
+
 def _split_value_and_comment(rest: str) -> tuple[str, str]:
     """Split the text after 'key:' into (value_text, trailing_comment)."""
     text = rest.strip()

@@ -1012,24 +1012,28 @@ void simx8::ConfigureX8Payload()
     sph_mat->SetFriction(1.0f);
     sph_mat->SetDampingF(0.5f);
 
+    // 300 g
     auto sphereBody = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
         1.5 * 14147.1,
         sph_mat
     );
 
+    // 300 g
     auto sphereBody1 = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
         1.5 * 14147.1,
         sph_mat
     );
 
+    // 100 g
     auto sphereBody2 = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
         0.5 * 14147.1,
         sph_mat
     );
 
+    // 100 g
     auto sphereBody3 = chrono_types::make_shared<chrono::ChBodyEasySphere>(
         0.015,
         0.5 * 14147.1,
@@ -1042,19 +1046,19 @@ void simx8::ConfigureX8Payload()
 
     sphereBody->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(0.00300000000000161,
                                                                                             -0.00300000000000006,
-                                                                                             0.205499999999996)));
+                                                                                             0.105499999999996)));
 
     sphereBody1->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(0.00300000000000161 + 0.02,
                                                                                               -0.00300000000000006 + 0.02,
-                                                                                              0.205499999999996)));
+                                                                                              0.105499999999996)));
 
     sphereBody2->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(0.00300000000000161 - 0.02,
                                                                                               -0.00300000000000006 - 0.02,
-                                                                                              0.205499999999996)));
+                                                                                              0.105499999999996)));
 
     sphereBody3->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(chrono::ChVector3d(0.00300000000000161 + 0.02,
                                                                                               -0.00300000000000006 - 0.02,
-                                                                                              0.205499999999996)));
+                                                                                              0.105499999999996)));
 
 
                                                                                           

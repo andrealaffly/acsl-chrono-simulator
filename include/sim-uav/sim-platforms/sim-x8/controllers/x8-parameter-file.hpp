@@ -54,10 +54,14 @@ inline constexpr double MASS = 1.54952076;  // mass [Kg]
 // Matrix of inertia of the quadcopter frame 
 // [kg*m^2] inertia matrix of the vehicle system expressed in
 // Pixhawk coordinate system (FRD - x-Front, y-Right, z-Down), computed at the vehicle center of mass
-const Eigen::Matrix3d inertia_matrix_q = (Eigen::Matrix3d() << 
-                                                0.01589049,	0.00001170,-0.00071388,
-                                                0.00001170,	0.01390128,-0.00001036,
-                                               -0.00071388,-0.00001036,	0.01399882).finished();
+// const Eigen::Matrix3d inertia_matrix_q = (Eigen::Matrix3d() << 
+//                                                 0.01589049,	0.00001170,-0.00071388,
+//                                                 0.00001170,	0.01390128,-0.00001036,
+//                                                -0.00071388,-0.00001036,	0.01399882).finished();
+const Eigen::Matrix3d inertia_matrix_q = (Eigen::Matrix3d() <<
+                                                0.01589049, -0.00001170,  0.00071388,
+                                               -0.00001170,  0.01390128,  0.00001036,
+                                                0.00071388,  0.00001036,  0.01399882).finished();
 
 // Constants -------------------------------------------------------------------------------------------------------
 inline constexpr double G = 9.81;
@@ -78,8 +82,12 @@ static inline const Eigen::Vector3d e3_basis = Eigen::Vector3d(0.0, 0.0, 1.0);
 // Thrust Normalizeing polynomials are hardcoded!
 // Take care coding this from matlab. check the documentation for the polyval function.
 // The polynomails are reversed!.
-inline constexpr double CT_MOTOR =  0.01;       // motor torque coeff              [-]
-inline constexpr double MAX_THRUST = 10.625;    // max allowed thrust per motor    [N]
+// inline constexpr double CT_MOTOR =  0.01;       // motor torque coeff              [-]
+// inline constexpr double MAX_THRUST = 10.625;    // max allowed thrust per motor    [N]
+inline constexpr double CT_MOTOR =  0.1;        // motor torque coeff              [-]
+// Kept below 9.98 N, where the thrust -> normalized polynomial above reaches 1.0: past that the simulator's
+// normalized -> thrust polynomial diverges (10.625 N mapped to a 667 N command).
+inline constexpr double MAX_THRUST = 9.9;       // max allowed thrust per motor    [N]
 inline constexpr double MIN_THRUST = 0.6275;    // min allowed thrust per motor    [N]
 
 // Roll Rate Filter ------------------------------------------------------------------------------------------------
@@ -195,55 +203,70 @@ const Eigen::VectorXd thrust_polynomial_coeff_x8 = (Eigen::VectorXd(8) <<
 // Mixer Matrix ----------------------------------------------------------------------------------------------------
 // This captures the necessary constants within the lambda function and initializes the mixer_matrix_x8 with the
 // resulting matrix.
-// [   1,   1,    1,    1,    1,    1,    1,    1]
-// [ l_y, l_y, -l_y, -l_y,  l_y,  l_y, -l_y, -l_y]
-// [-l_x, l_x,  l_x, -l_x, -l_x,  l_x,  l_x, -l_x]
-// [-c_t, c_t, -c_t,  c_t,  c_t, -c_t,  c_t, -c_t]
+//
+// Motor layout (PX4 "Octorotor Coaxial", body frame FRD, top layer = 1-4, bottom layer = 5-8):
+//   1: front-right top    CCW        5: front-left  bottom   CCW
+//   2: front-left  top    CW         6: front-right bottom   CW
+//   3: rear-left   top    CCW        7: rear-right  bottom   CCW
+//   4: rear-right  top    CW         8: rear-left   bottom   CW
+//
+// Allocation matrix B (u = B * T), with u = [thrust, roll, pitch, yaw] and T the 8 motor thrusts:
+//   roll  = -y_i * T_i   (motors on the left, y < 0, roll right)
+//   pitch =  x_i * T_i   (motors in front, x > 0, pitch up)
+//   yaw   = +c_t * T_i for CCW props, -c_t * T_i for CW props (a CCW prop's reaction torque is +z NED, see
+//           sim-uav.tpp)
+// [   1,    1,    1,    1,    1,    1,    1,    1]
+// [-l_y,  l_y,  l_y, -l_y,  l_y, -l_y, -l_y,  l_y]
+// [ l_x,  l_x, -l_x, -l_x,  l_x,  l_x, -l_x, -l_x]
+// [ c_t, -c_t,  c_t, -c_t,  c_t, -c_t,  c_t, -c_t]
+//
+// The rows of B are orthogonal, so the mixer (its pseudo-inverse) is B transposed with each columndivided by
+// 8 * (that row's entry)^2, i.e. every entry below is sign / (8 * l).
 const Eigen::Matrix<double,8,4> mixer_matrix_x8 = []() {
     Eigen::Matrix<double,8,4> mat; // 8 rows, 4 columns
-        
+
     // Assign values element-by-element
     mat(0, 0) =  1.0 / 8.0;
     mat(0, 1) = -1.0 / (8.0 * LY);
     mat(0, 2) =  1.0 / (8.0 * LX);
-    mat(0, 3) = -1.0 / (8.0 * CT_MOTOR); 
+    mat(0, 3) =  1.0 / (8.0 * CT_MOTOR);
 
     mat(1, 0) =  1.0 / 8.0;
     mat(1, 1) =  1.0 / (8.0 * LY);
     mat(1, 2) =  1.0 / (8.0 * LX);
-    mat(1, 3) =  1.0 / (8.0 * CT_MOTOR); 
+    mat(1, 3) = -1.0 / (8.0 * CT_MOTOR);
 
     mat(2, 0) =  1.0 / 8.0;
     mat(2, 1) =  1.0 / (8.0 * LY);
     mat(2, 2) = -1.0 / (8.0 * LX);
-    mat(2, 3) = -1.0 / (8.0 * CT_MOTOR); 
+    mat(2, 3) =  1.0 / (8.0 * CT_MOTOR);
 
     mat(3, 0) =  1.0 / 8.0;
     mat(3, 1) = -1.0 / (8.0 * LY);
     mat(3, 2) = -1.0 / (8.0 * LX);
-    mat(3, 3) =  1.0 / (8.0 * CT_MOTOR); 
-    
+    mat(3, 3) = -1.0 / (8.0 * CT_MOTOR);
+
     mat(4, 0) =  1.0 / 8.0;
     mat(4, 1) =  1.0 / (8.0 * LY);
     mat(4, 2) =  1.0 / (8.0 * LX);
-    mat(4, 3) = -1.0 / (8.0 * CT_MOTOR); 
+    mat(4, 3) =  1.0 / (8.0 * CT_MOTOR);
 
     mat(5, 0) =  1.0 / 8.0;
     mat(5, 1) = -1.0 / (8.0 * LY);
     mat(5, 2) =  1.0 / (8.0 * LX);
-    mat(5, 3) =  1.0 / (8.0 * CT_MOTOR); 
+    mat(5, 3) = -1.0 / (8.0 * CT_MOTOR);
 
     mat(6, 0) =  1.0 / 8.0;
     mat(6, 1) = -1.0 / (8.0 * LY);
     mat(6, 2) = -1.0 / (8.0 * LX);
-    mat(6, 3) = -1.0 / (8.0 * CT_MOTOR); 
+    mat(6, 3) =  1.0 / (8.0 * CT_MOTOR);
 
     mat(7, 0) =  1.0 / 8.0;
     mat(7, 1) =  1.0 / (8.0 * LY);
     mat(7, 2) = -1.0 / (8.0 * LX);
-    mat(7, 3) =  1.0 / (8.0 * CT_MOTOR);
+    mat(7, 3) = -1.0 / (8.0 * CT_MOTOR);
 
-    return mat; 
+    return mat;
 }();
 
 // ##################################################################################

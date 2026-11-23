@@ -1,0 +1,223 @@
+# **********************************************************************************************************************
+ # Copyright (c) 2025 Giri M. Kumar, Mattia Gramuglia, Andrea L'Afflitto. All rights reserved.
+ # 
+ # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ # following conditions are met:
+ # 
+ # 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+ #    disclaimer.
+ # 
+ # 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+ #    following disclaimer in the documentation and/or other materials provided with the distribution.
+ # 
+ # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+ #    products derived from this software without specific prior written permission.
+ # 
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ # INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# **********************************************************************************************************************
+
+########################################################################################################################
+# UAV Simulator config
+#
+# This YAML file defines which UAV model/platform the ACSL Physics Simulator
+# should load. For each new UAV type:
+#   1. Add the platform entry in this file.
+#   2. Make sure the platform's include file is present in sim-platforms.hpp
+#   2. Update `sim-bridge.hpp` and `sim-bridge.cpp` accordingly.
+#   3. Make sure the platform exists in the ACSL Physics Sim database with clear .hpp and .cpp files for 
+#      the derived class.
+#
+# NOTES:
+# - Only one UAV platform should be enabled at a time for simulation.
+# - This file also configures the simulator to start in the SIL/HIL modes or to run in MIL mode.
+# - This file also configures the level of debugging you want from the simulator (Does not include the controller logs).
+########################################################################################################################
+
+# ============================================================================
+# Simulation Mode
+# ============================================================================
+mode:
+  # Enable to run in SIL/HIL mode | runs in MIL if not enabled
+  enable_flightstack_loop: false
+
+  # ROS 2 domain ID of the SIL/HIL link. Must match LOCKSTEP_DOMAIN_ID in the flightstack's utils/start_lockstep.sh
+  ros_domain_id: 49
+
+  # Set to true to use the biplane frame in control computation
+  enable_biplane_frame_data: false
+
+  # Set to true to enable wrapper mode
+  enable_wrapper: true
+
+# ============================================================================
+# Debugging toggles
+# ============================================================================
+debug:
+  # Set to true if you want to print the chassis state data to the screen
+  terminal: false
+
+  # Set to true if you want to log the uav chassis and prop state data to file
+  log_physics: true
+
+  # Set to true if you want to log the network timing data in HIL/SIL mode to file
+  log_network: true
+  
+  # Set to true if you want to stop the simulation at a given time (in seconds)
+  sim_debug_stop: false
+
+  # Set the value at which you want the simulation to stop (in seconds)
+  sim_stop_time: 15.0
+
+  # Set to true if you want the system to import model and not execute contorl
+  developer_mode: false
+
+  # Set the value to true if you want the system to update the physics for 
+  # every timestep as you press the "ENTER" key
+  developer_mode_steps: false
+
+  # Set the value to true if you want to use u1-u4 instead of thrust setpoints
+  treat_as_rigid_body: false
+
+# ============================================================================
+# UAV Platform Selection
+# IMPORTANT: Only one platform should be imported at a time
+# ============================================================================
+platform:
+  # Set to true to import the QRBP
+  qrbp: false
+  
+  # Set to true to import the tailsitter
+  tailsitter: false
+  
+  # Set to true to import the medium quadcotper
+  quadm: false
+  
+  # Set to true to import the x8 cotper
+  x8: true
+
+# ============================================================================
+# UAV Origin Selection
+# IMPORTANT: Only one origin modifier is set at a time
+# ============================================================================
+origin:
+  # Set to true to import the drone at (0,0,0) in the inertial frame
+  set_origin_to_zero: true
+
+  # Set to true to import the drone at (X,Y,Z) in the inertial frame
+  set_origin_to_custom: false
+  custom_origin:
+    x: 0.3
+    y: 0.25
+    z: 0.0
+
+  # Set to true to import the drone at random location inside the geofence
+  set_origin_to_random: false
+  geofence:
+    x_min: -1.0
+    x_max: 1.0
+    y_min: -1.0
+    y_max: 1.0
+    z_min: -1.1
+    z_max: -2.5
+
+
+# ============================================================================
+# UAV Aerodynamics Selection
+# IMPORTANT: Only Chassis drag is setup by default. You will need to 
+#            configure the aerodynamics for the wings and control surfaces
+#            of your platform, else the simulation will fail.
+# ============================================================================
+aerodynamics:
+  # Set to true to enable the chassis drag aerodynamics
+  chassis_drag: false
+  
+  # Set to true to enable the wing aerodynamics (if present)
+  wing_aero: false
+  
+  # Set to true to print the wing aerodynamic state data to the terminal screen
+  aero_terminal: false
+
+# ============================================================================
+# UAV Motor Disturbances
+# IMPORTANT: Please make sure the motor numbering is the right one to turn off.
+# ============================================================================
+motor_disturbances:
+  # Set to true if motor disturbances are to be applied.
+  reduce_efficiency: false
+
+  # Set the motor number here.
+  affected_motor: 1
+
+  # Set the time at which you want the reduced efficieny to take place
+  time_of_disturbance: 40.0
+
+  # Set efficieny percentage, 1.0 is 100% of total power, 0 is 0% of total power
+  total_efficiency: 0.8
+
+# ============================================================================
+# UAV Controller Selection
+# IMPORTANT: 1. Only one controller can be active at any given time. 
+#            2. Controller and platform should match. Please see platform
+#               setting to see the currently active platform.
+# ============================================================================
+controller:
+  qrbp:
+    pid_omega: false
+    mrac_omega: false
+    mrac_observer: false
+    mrac_long_lat: false
+    pid_quaternion: false
+    pid_geometric: false
+    mrac_geometric: false
+  x8copter: 
+    pid: false
+    mrac: false
+    tlmrac: false
+  tailsitter:
+    mrac_geometric: false
+    mrac_hybrid: false
+  quadm:
+    mrac_omega: false
+    mrac_geometric: false
+    mrac_geometric_na_ebci: false
+    nmpc: false
+    nmpc_hybrid: false
+  x8:
+    mrac_omega: false
+    mrac_geometric: true
+
+# ============================================================================
+# Simulation Environment Selection
+# IMPORTANT: Only one environment should be imported at a time
+# ============================================================================
+environment:
+  # Set to true to import the Flat Platform environment 
+  flat: true
+
+# ============================================================================
+# Trajectory Module Selection
+# IMPORTANT: Only one trajectory module should be selected at a time
+# ============================================================================
+interp:
+  # Set to true to use the interpolation trajectory module
+  enabled: false
+  # Type in the trajectory filename that needs to be imported
+  filename: temp
+  # Type in the filetype of the trajectory filename that needs to be imported
+  filetype: csv
+
+poly:
+  # Set to true to use the segmented minimum-jerk polynomial trajectory module
+  enabled: true
+  # Type in the trajectory filename that needs to be imported
+  filename: bean_trajectory_modified0p8
+  # Type in the filetype of the trajectory filename that needs to be imported
+  filetype: json
+
+

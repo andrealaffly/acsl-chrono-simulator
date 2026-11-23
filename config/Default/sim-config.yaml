@@ -46,6 +46,9 @@ mode:
   # Enable to run in SIL/HIL mode | runs in MIL if not enabled
   enable_flightstack_loop: false
 
+  # ROS 2 domain ID of the SIL/HIL link. Must match LOCKSTEP_DOMAIN_ID in the flightstack's utils/start_lockstep.sh
+  ros_domain_id: 49
+
   # Set to true to use the biplane frame in control computation
   enable_biplane_frame_data: false
 
@@ -62,6 +65,9 @@ debug:
   # Set to true if you want to log the uav chassis and prop state data to file
   log_physics: true
 
+  # Set to true if you want to log the network timing data in HIL/SIL mode to file
+  log_network: true
+  
   # Set to true if you want to stop the simulation at a given time (in seconds)
   sim_debug_stop: false
 
@@ -178,8 +184,10 @@ controller:
     mrac_hybrid: false
   quadm:
     mrac_omega: false
-    mrac_geometric: true
+    mrac_geometric: false
     mrac_geometric_na_ebci: false
+    nmpc: true
+    nmpc_hybrid: false
   x8:
     mrac_omega: false
     mrac_geometric: false
@@ -208,7 +216,7 @@ poly:
   # Set to true to use the segmented minimum-jerk polynomial trajectory module
   enabled: true
   # Type in the trajectory filename that needs to be imported
-  filename: bean_trajectory0p3
+  filename: bean_trajectory_modified0p8
   # Type in the filetype of the trajectory filename that needs to be imported
   filetype: json
 

@@ -729,6 +729,8 @@ void simuav<nop>::LinkUAVBodies(const std::vector<LinkData>& link_data_vec)
     // Store a copy of the input link data in the class member for future/reference operations
     links = link_data_vec;
 
+    const auto ned = [](const chrono::ChVector3d& v) { return ::_shared_::_transformations_::GetChronoPosFromNED(v); };
+
     // Iterate over all stored link property variants in the member vector
     for (const auto& link_data : links) {
         std::visit([&](const auto& prop) {
@@ -737,7 +739,8 @@ void simuav<nop>::LinkUAVBodies(const std::vector<LinkData>& link_data_vec)
             if constexpr (std::is_same_v<std::decay_t<decltype(prop)>, LinkProperty<LinkType::Parallel>>) {
                 link = chrono_types::make_shared<chrono::ChLinkMateParallel>();
                 std::dynamic_pointer_cast<chrono::ChLinkMateParallel>(link)->SetFlipped(prop.flipped);
-                std::dynamic_pointer_cast<chrono::ChLinkMateParallel>(link)->Initialize(prop.bodyA, prop.bodyB, false, prop.cA, prop.cB, prop.dA, prop.dB);
+                std::dynamic_pointer_cast<chrono::ChLinkMateParallel>(link)->Initialize(
+                    prop.bodyA, prop.bodyB, false, ned(prop.cA), ned(prop.cB), ned(prop.dA), ned(prop.dB));
                 std::dynamic_pointer_cast<chrono::ChLinkMateParallel>(link)->SetName(prop.name);
             }
             // Generic
@@ -746,14 +749,14 @@ void simuav<nop>::LinkUAVBodies(const std::vector<LinkData>& link_data_vec)
                 std::dynamic_pointer_cast<chrono::ChLinkMateGeneric>(link)->SetConstrainedCoords(
                     prop.cx, prop.cy, prop.cz, prop.rx, prop.ry, prop.rz);
                 std::dynamic_pointer_cast<chrono::ChLinkMateGeneric>(link)->Initialize(
-                    prop.bodyA, prop.bodyB, false, prop.cA, prop.cB, prop.dA, prop.dB);
+                    prop.bodyA, prop.bodyB, false, ned(prop.cA), ned(prop.cB), ned(prop.dA), ned(prop.dB));
                 std::dynamic_pointer_cast<chrono::ChLinkMateGeneric>(link)->SetName(prop.name);
             }
             // DistanceZ
             else if constexpr (std::is_same_v<std::decay_t<decltype(prop)>, LinkProperty<LinkType::DistanceZ>>) {
                 link = chrono_types::make_shared<chrono::ChLinkMateDistanceZ>();
                 std::dynamic_pointer_cast<chrono::ChLinkMateDistanceZ>(link)->Initialize(
-                    prop.bodyA, prop.bodyB, false, prop.cA, prop.cB, prop.dB);
+                    prop.bodyA, prop.bodyB, false, ned(prop.cA), ned(prop.cB), ned(prop.dB));
                 std::dynamic_pointer_cast<chrono::ChLinkMateDistanceZ>(link)->SetDistance(prop.distance);
                 std::dynamic_pointer_cast<chrono::ChLinkMateDistanceZ>(link)->SetName(prop.name);
             }
@@ -761,7 +764,7 @@ void simuav<nop>::LinkUAVBodies(const std::vector<LinkData>& link_data_vec)
             else if constexpr (std::is_same_v<std::decay_t<decltype(prop)>, LinkProperty<LinkType::Orthogonal>>) {
                 link = chrono_types::make_shared<chrono::ChLinkMateOrthogonal>();
                 std::dynamic_pointer_cast<chrono::ChLinkMateOrthogonal>(link)->Initialize(
-                    prop.bodyA, prop.bodyB, false, prop.cA, prop.cB, prop.dA, prop.dB);
+                    prop.bodyA, prop.bodyB, false, ned(prop.cA), ned(prop.cB), ned(prop.dA), ned(prop.dB));
                 std::dynamic_pointer_cast<chrono::ChLinkMateOrthogonal>(link)->SetName(prop.name);
             }
             // Fix

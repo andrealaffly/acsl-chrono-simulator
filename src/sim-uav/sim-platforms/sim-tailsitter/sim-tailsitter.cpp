@@ -472,7 +472,7 @@ void simtailsitter::ConfigureTAILSITTERMotors()
     motor_properties.ct = 0.542418958461701;
 
     // Cache the rps scaler value 
-    motor_properties.rps_scaler = 0.25;
+    motor_properties.rps_scaler = 0.15;
 
     // Cache the motor polynomial coefficients
     // Polynomial coefficients vector to evaluate the Commanded Thrust [-] based on the Thrust in Newton

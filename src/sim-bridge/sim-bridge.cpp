@@ -36,6 +36,8 @@
  **********************************************************************************************************************/
 
 #include "sim-bridge.hpp"
+#include <thread>       // For std::this_thread::sleep_for in the HIL / SIL wait gate
+#include <limits>       // For std::numeric_limits (render throttle bypass in the wait gate)
 
 namespace _acsl_
 {
@@ -102,9 +104,11 @@ void simbridge::ConfigureSimulatorFromConfig()
     // STEP 4 – Extract simulation mode and debuging settings
     // ------------------------------------------------------------------------
     this->efsl = config_file["mode"]["enable_flightstack_loop"].as_bool();
+    this->ros_domain_id = config_file["mode"]["ros_domain_id"].as_int();
     this->enable_biplane_frame_data = config_file["mode"]["enable_biplane_frame_data"].as_bool();
     this->enable_wrapper = config_file["mode"]["enable_wrapper"].as_bool();
     this->log2file = config_file["debug"]["log_physics"].as_bool();
+    this->log2fileLockstep = config_file["debug"]["log_network"].as_bool();
     this->log2terminal = config_file["debug"]["terminal"].as_bool();
     this->sim_debug_stop = config_file["debug"]["sim_debug_stop"].as_bool();
     this->sim_stop_time = static_cast<double>(config_file["debug"]["sim_stop_time"].as_float()); 
@@ -417,6 +421,7 @@ void simbridge::ConfigureSimulatorFromConfig()
     _message_::SIMULATOR_INFO("[SIMBRG]:  - ACTIVE CONTROLLER: "            + active_controller.second);
     _message_::SIMULATOR_INFO("[SIMBRG]:  - DISPLAY STATES TO TERMINAL: "   + ::_shared_::_conversions_::bool2string(log2terminal));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - LOG PHYSICS STATES TO FILE: "   + ::_shared_::_conversions_::bool2string(log2file));
+    _message_::SIMULATOR_INFO("[SIMBRG]:  - LOG NETWORK DATA TO FILE: "     + ::_shared_::_conversions_::bool2string(log2fileLockstep));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - SIMULATION HARD DEBUG STOP: "   + ::_shared_::_conversions_::bool2string(sim_debug_stop));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - SIMULATION STOP TIME (s): "     + std::to_string(sim_stop_time));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - TREAT UAV AS RIGID BODY: "      + ::_shared_::_conversions_::bool2string(treat_as_rigid_body));
@@ -846,6 +851,59 @@ void simbridge::UpdateControlAction() {
 }
 
 // =====================================================================================================================
+// UpdateControlActionLockstep()
+//
+// Purpose:
+//   HIL / SIL control for one simulator step. The flightstack runs its own controller on the simulator's time,
+//   state and reference, and returns 8 normalized motor thrusts, applied here like UpdateControlAction() does.
+// =====================================================================================================================
+void simbridge::UpdateControlActionLockstep() {
+
+    // Create the request object to send to the flightstack for this step. Contains the time, state, and reference.
+    ::_acsl_::_lockstep_::simlockstep::StepRequest request;
+
+    // STEP 1 – Time and state (same NED / biplane choice as the built-in controller)
+    request.time = m_state.time;
+    request.x  = m_state.pos.x();  request.y  = m_state.pos.y();  request.z  = m_state.pos.z();
+    request.vx = m_state.vel.x();  request.vy = m_state.vel.y();  request.vz = m_state.vel.z();
+
+    const auto& quat = this->enable_biplane_frame_data ? m_state.quat_bp : m_state.quat;
+    const auto& eul  = this->enable_biplane_frame_data ? m_state.eul_bp  : m_state.eul;
+    const auto& ovel = this->enable_biplane_frame_data ? m_state.ovel_bp : m_state.ovel;
+    request.q0 = quat.e0();  request.q1 = quat.e1();  request.q2 = quat.e2();  request.q3 = quat.e3();
+    request.roll = eul.x();  request.pitch = eul.y();  request.yaw = eul.z();
+    request.p = ovel.x();    request.q = ovel.y();     request.r = ovel.z();
+
+    // STEP 2 – Reference at this time (same call the built-in controllers make)
+    this->m_trj->UpdateModule(m_state.time);
+    auto to3 = [](const Eigen::Vector3d& v) { return std::array<double, 3>{v.x(), v.y(), v.z()}; };
+    request.ref_position             = to3(this->m_trj->GetPosition());
+    request.ref_velocity             = to3(this->m_trj->GetVelocity());
+    request.ref_acceleration         = to3(this->m_trj->GetAcceleration());
+    request.ref_angle                = to3(this->m_trj->GetEulerAngle());
+    request.ref_angular_rate         = to3(this->m_trj->GetEulerRate());
+    request.ref_angular_rate_dot     = to3(this->m_trj->GetEulerAcc());
+    request.ref_angular_velocity     = to3(this->m_trj->GetAngVel());
+    request.ref_angular_acceleration = to3(this->m_trj->GetAngAcc());
+
+    // STEP 3 – Step (blocks until the flightstack replies). Failure -> print the reason and exit
+    std::array<double, 8> motors{};
+    std::string message;
+    if (!this->m_lockstep->Step(request, motors, message)) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL step failed: ", message);
+    }
+
+    // STEP 4 – Dispatch (motor N -> actuator N, as in UpdateControlAction())
+    int propCount = m_uav->GetPropCount();
+    if (propCount < 1 || propCount > 8) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: ONLY 1-8 ACTUATORS SUPPORTED IN HIL / SIL. PROPS: ", propCount);
+    }
+    for (int i = 1; i <= propCount; ++i) {
+        m_uav->SetThrustSetPoint(i, motors[i - 1]);
+    }
+}
+
+// =====================================================================================================================
 // UpdatePhysicsSystem()
 //
 // Purpose:
@@ -954,9 +1012,16 @@ void simbridge::UpdatePhysicsSystem()
 
     }
 
+    // ------------------------------------------------------------------------
+    // STEP 5b – IF EFSL is on (HIL / SIL): the flightstack computes the control.
+    // ------------------------------------------------------------------------
+    if (this->GetSimMode() && !this->developer_mode) {
+        this->UpdateControlActionLockstep();
+    }
+
 
     // ------------------------------------------------------------------------
-    // STEP 4 – If terminal logging is enabled, print state block in color.
+    // STEP 6 – If terminal logging is enabled, print state block in color.
     // ------------------------------------------------------------------------
     if (this->log2terminal)
     {
@@ -1336,9 +1401,111 @@ void simbridge::EverPause()
     }
 }
 
+// =====================================================================================================================
+// WaitForFlightstack()
+//
+// Purpose:
+//   HIL / SIL wait gate. The physics clock is NOT stepped here, so the simulation starts at t = 0 s on the first
+//   Step after the handshake, whichever of the simulator and the flightstack was started first.
+//
+// Workflow:
+//   1. Create the lockstep client (starts ROS 2 without signal handlers).
+//   2. Render only, probing every 100 ms until both flightstack services are discovered.
+//   3. Handshake (platform, controller, step size). TIMEOUT -> retry (up to 3 attempts), REJECTED -> print and exit.
+// =====================================================================================================================
+void simbridge::WaitForFlightstack()
+{
+    // Rigid-body mode needs u1..u4 at the COM; the flightstack only returns motor thrusts
+    if (this->treat_as_rigid_body) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL with treat_as_rigid_body is not supported yet (flightstack sends motor thrusts only).");
+    }
+
+    // In HIL / SIL the motor failure is emulated by the flightstack (MotorFailureParams in flight_main_params.json),
+    // so the simulator's own motor disturbance must be off (otherwise the motor would be degraded twice)
+    if (this->motor_disturbance.reduce_efficiency) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL with motor_disturbances.reduce_efficiency = true is not supported. "
+                                   "Set it to false in sim-config.yaml and use MotorFailureParams in the flightstack's "
+                                   "flight_main_params.json instead.");
+    }
+
+    // 1. Lockstep client
+    // Network log only when debug.log_network is true (this function only runs with enable_flightstack_loop on)
+    this->m_lockstep = std::make_unique<::_acsl_::_lockstep_::simlockstep>(
+        this->ros_domain_id, this->log2fileLockstep ? this->m_logger.GetLogDirectory() : std::filesystem::path());
+
+    _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL: waiting for the flightstack (utils/start_lockstep.sh). Clock held at t = 0 s");
+
+    // 2. Render only until the flightstack services are up
+    while (!this->m_lockstep->IsServerUp())
+    {
+        // The render throttle is driven by sim time, which is frozen here: force a frame so the window stays live
+        this->m_last_render_time = -std::numeric_limits<double>::infinity();
+        this->UpdateVisualizationSystem();
+
+        _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL: still waiting for the flightstack...", 5000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    this->m_last_render_time = 0.0;
+
+    // 3. Handshake
+    std::string message;
+    ::_acsl_::_lockstep_::HandshakeResult result = ::_acsl_::_lockstep_::HandshakeResult::TIMEOUT;
+
+    for (int attempt = 1; attempt <= 3 && result == ::_acsl_::_lockstep_::HandshakeResult::TIMEOUT; ++attempt)
+    {
+        result = this->m_lockstep->Handshake(this->active_platform, this->active_controller.second,
+                                             this->m_sys.GetPhyConfig().StepSize, message);
+
+        if (result == ::_acsl_::_lockstep_::HandshakeResult::TIMEOUT) {
+            _message_::SIMULATOR_WARNING("[SIMBRG]: HIL / SIL handshake attempt " + std::to_string(attempt) + "/3: ", message);
+        }
+    }
+
+    if (result != ::_acsl_::_lockstep_::HandshakeResult::ACCEPTED) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL handshake failed: ", message);
+    }
+
+    _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL handshake accepted. ", message);
+
+    // 4. Trajectory upload: sample the whole trajectory once at the step size (t = 0 .. Tmax, in time order) so the
+    //    flightstack can answer reference requests at any time from a cache (MPC horizons) with no per-step traffic.
+    const double dt = this->m_sys.GetPhyConfig().StepSize;
+    const size_t n_samples = static_cast<size_t>(std::ceil(this->m_trj->GetTmax() / dt)) + 1;
+
+    auto to3 = [](const Eigen::Vector3d& v) { return std::array<double, 3>{v.x(), v.y(), v.z()}; };
+    std::vector<::_acsl_::_lockstep_::simlockstep::ReferenceSample> samples(n_samples);
+    for (size_t i = 0; i < n_samples; ++i)
+    {
+        this->m_trj->UpdateModule(static_cast<double>(i) * dt);
+        samples[i] = {to3(this->m_trj->GetPosition()),   to3(this->m_trj->GetVelocity()),
+                      to3(this->m_trj->GetAcceleration()), to3(this->m_trj->GetEulerAngle()),
+                      to3(this->m_trj->GetEulerRate()),  to3(this->m_trj->GetEulerAcc()),
+                      to3(this->m_trj->GetAngVel()),     to3(this->m_trj->GetAngAcc())};
+    }
+
+    // Back to the start so the run evaluates the trajectory in time order from t = 0, as in MIL
+    this->m_trj->UpdateModule(0.0);
+
+    if (!this->m_lockstep->UploadTrajectory(samples, dt, message)) {
+        _message_::SIMULATOR_ERROR("[SIMBRG]: HIL / SIL trajectory upload failed: ", message);
+    }
+
+    _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL trajectory uploaded. ", message);
+}
+
 // Prototype ever run function -  will house the logic for all the modes.
 void simbridge::EverRun()
 {
+    // Assemble the UAV (joints + NED orientation) and sync the visual system WITHOUT advancing the clock, for every
+    // mode: the first step starts from a consistent pose, and the HIL / SIL wait gate renders it upright at t = 0.
+    this->m_sys.GetPhysicsSystem().DoAssembly(chrono::AssemblyAnalysis::Level::FULL);
+
+    // HIL / SIL: hold the clock at t = 0 until the flightstack is up and has accepted the handshake
+    if (this->efsl)
+    {
+        this->WaitForFlightstack();
+    }
+
     // If you are in developer mode, you do not update the control input for the system
     if (this->developer_mode)
     {
@@ -1391,7 +1558,19 @@ void simbridge::EverRun()
         }
     }
 
-    
+    // HIL / SIL: tell the flightstack the simulation is over (it replies, then shuts down cleanly)
+    if (this->efsl && this->m_lockstep)
+    {
+        std::string message;
+        if (this->m_lockstep->Finish(this->m_sys.GetPhysicsSystem().GetChTime(), message)) {
+            _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL finished. ", message);
+        } else {
+            _message_::SIMULATOR_WARNING("[SIMBRG]: HIL / SIL finish: ", message);
+        }
+        // Round-trip timing summary (always printed; also in network_summary.log when debug.log_network is true)
+        _message_::SIMULATOR_INFO("[SIMBRG]: HIL / SIL timing: ",
+                                  this->m_lockstep->TimingSummary(this->m_sys.GetPhysicsSystem().GetChTime()));
+    }    
     
 }
 

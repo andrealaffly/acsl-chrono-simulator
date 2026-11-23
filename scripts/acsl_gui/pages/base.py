@@ -75,6 +75,20 @@ class Page:
         orphaned by closing the app (unsaved edits, a running subprocess, ...)."""
         return False
 
+    # --- Mission hooks ------------------------------------------------------
+    # For pages that edit a config file which missions carry (see
+    # MISSION_EXTRA_FILES in settings.py): the Settings page calls these on
+    # every other page when it saves or loads a mission.
+    def save_config(self) -> bool:
+        """Write this page's unsaved config edits to config/, so a mission
+        being saved includes them. Return False to stop the save (e.g. an
+        invalid value, already reported to the user)."""
+        return True
+
+    def reload_config(self) -> None:
+        """Re-read this page's config file from config/, dropping unsaved
+        edits (a mission was just loaded over it)."""
+
     def on_close(self) -> None:
         """Called once, on every page, right before the app window closes.
         Use it to clean up anything that shouldn't outlive the GUI (e.g. a

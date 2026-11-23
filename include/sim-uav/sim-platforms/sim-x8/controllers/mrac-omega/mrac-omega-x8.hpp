@@ -157,8 +157,8 @@ struct controller_internal_members {
     Eigen::Matrix<double, 3, 1> tau_rot_baseline;                  // Baseline rotational control input 
     Eigen::Matrix<double, 3, 1> tau_rot;                           // Rotational Control action
     Eigen::Matrix<double, 4, 1> u;                                 // [thrust; mx; my; mz]
-    Eigen::Matrix<double, 4, 1> Thrust;                            // Newtons
-    Eigen::Matrix<double, 4, 1> Sat_Thrust;                        // Saturated thrust 
+    Eigen::Matrix<double, 8, 1> Thrust;                            // Newtons
+    Eigen::Matrix<double, 8, 1> Sat_Thrust;                        // Saturated thrust 
     Eigen::Quaterniond q;                                          // Quaternion
     Eigen::Matrix<double, 2, 1> internal_state_roll_d_filter;      // Internal States for filter
     Eigen::Matrix<double, 2, 1> internal_state_pitch_d_filter;     // Internal States for filter

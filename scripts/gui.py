@@ -59,6 +59,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_DIR = SCRIPT_DIR.parent
 CONFIG_DIR = REPO_DIR / "config"
 
+# The GA tuner lives in python-modules/ga (imported as "ga" by the Genetic
+# Algorithm page), outside scripts/, so its folder goes on the import path.
+PYTHON_MODULES_DIR = REPO_DIR / "python-modules"
+if str(PYTHON_MODULES_DIR) not in sys.path:
+    sys.path.insert(0, str(PYTHON_MODULES_DIR))
+
 
 # Checked before anything else imports tkinter, so a missing system package
 # fails with a one-line fix instead of a raw ModuleNotFoundError traceback.
@@ -85,6 +91,14 @@ def main() -> int:
     from acsl_gui.pages.simulator import SimulatorPage
     from acsl_gui.shell import AppShell
 
+    # The GA page needs numpy (and the GA tuner package); without them the
+    # rest of the GUI still works, just without that page.
+    try:
+        from acsl_gui.pages.genetic_algorithm import GeneticAlgorithmPage
+    except ImportError as error:
+        GeneticAlgorithmPage = None
+        print(f"Genetic Algorithm page disabled ({error}). Install numpy and pymoo to enable it.", file=sys.stderr)
+
     if not CONFIG_DIR.is_dir():
         print(f"Config directory not found: {CONFIG_DIR}", file=sys.stderr)
         return 1
@@ -94,7 +108,10 @@ def main() -> int:
     # so they're constructed after it exists, then registered with it. Order
     # here is sidebar order. Add future pages (a flightstack wrapper, ...) to
     # this list -- nothing else here or in shell.py needs to change.
-    pages = [SimulatorPage(shell, REPO_DIR), SettingsPage(shell, REPO_DIR)]
+    pages = [SimulatorPage(shell, REPO_DIR)]
+    if GeneticAlgorithmPage is not None:
+        pages.append(GeneticAlgorithmPage(shell, REPO_DIR))
+    pages.append(SettingsPage(shell, REPO_DIR))
     shell.register_pages(pages)
     shell.run()
     return 0

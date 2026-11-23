@@ -89,7 +89,7 @@ public:
         ConfigureTAILSITTERLinks();                                   // <- Compulsary derived class function
         ConfigureTAILSITTERMotors();                                  // <- Compulsary derived class function
         ConfigureTAILSITTERAerodynamics();                            // <- Unique derived class function
-        ConfigureTAILSITTERPayload();                                 // <- Unique derived class function
+        // ConfigureTAILSITTERPayload();                                 // <- Unique derived class function
         
         AddUAVToSystem();                                             // <- Baseclass function
 

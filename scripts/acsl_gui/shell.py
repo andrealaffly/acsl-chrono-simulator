@@ -51,10 +51,10 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, ttk
+from tkinter import ttk
 from typing import Optional
 
-from . import theme
+from . import dialogs, theme
 from .pages.base import Page
 
 APP_TITLE = "ACSL UAV Simulator"
@@ -187,10 +187,12 @@ class AppShell:
     def _on_close(self) -> None:
         unsaved = [p.label for p in self.pages if p.has_unsaved_changes()]
         if unsaved:
-            proceed = messagebox.askyesno(
+            proceed = dialogs.ask_yes_no(
+                self.root,
                 "Unsaved or in-progress work",
                 "This will lose unsaved edits or stop in-progress work on: " + ", ".join(unsaved) + ".\n\nQuit anyway?",
-                parent=self.root,
+                yes="Quit",
+                no="Cancel",
             )
             if not proceed:
                 return

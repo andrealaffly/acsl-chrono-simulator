@@ -226,8 +226,8 @@ struct controller_internal_members {
 	bool proj_op_activated_Theta_hat_rotational;				   // Projection activation boolean - IL - Theta_hat
 
     Eigen::Matrix<double, 4, 1> u;                                 // [thrust; mx; my; mz]
-    Eigen::Matrix<double, 4, 1> Thrust;                            // Newtons
-    Eigen::Matrix<double, 4, 1> Sat_Thrust;                        // Saturated thrust 
+    Eigen::Matrix<double, 8, 1> Thrust;                            // Newtons
+    Eigen::Matrix<double, 8, 1> Sat_Thrust;                        // Saturated thrust 
     double alg_duration;                                           // Control execution duration
     std::chrono::high_resolution_clock::time_point alg_start_time; // Algorithm Start timepoint
     std::chrono::high_resolution_clock::time_point alg_end_time;   // Algorithm End timepoint

@@ -1,0 +1,109 @@
+# **********************************************************************************************************************
+ # Copyright (c) 2025 Giri M. Kumar, Mattia Gramuglia, Andrea L'Afflitto. All rights reserved.
+ # 
+ # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ # following conditions are met:
+ # 
+ # 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+ #    disclaimer.
+ # 
+ # 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+ #    following disclaimer in the documentation and/or other materials provided with the distribution.
+ # 
+ # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+ #    products derived from this software without specific prior written permission.
+ # 
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ # INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# **********************************************************************************************************************
+
+########################################################################################################################
+# Visualization & Simulation Display Options
+#
+# This YAML file configures the appearance and interactivity of the ACSL Physics
+# Simulator visualization window. Fine-tune rendering, camera, and frame overlays 
+# to suit your simulation needs and preferred workflow.
+########################################################################################################################
+
+
+# ============================================================================
+# Main Visualization Toggles
+# ============================================================================
+main:
+  # Enable Visualization
+  enable_vis: true
+
+  # Set to true for Vulkan visualizaton 
+  enable_vulkan: false
+
+  # Set to true for Irrlicht visualizaton (Default) 
+  enable_irrlicht: true
+
+  # Target framerate
+  target_frame_rate: 60.0
+
+# ============================================================================
+# Camera options
+# ============================================================================
+camera:
+  # true: fixed viewpoint | false: dynamic/follow
+  enable_static_cam: false
+  
+  # (m) Distance the camera is placed in z (NED)
+  mv_cam_chase_ht: 1.0
+
+  # (m) Distance the camera is placed in x (NED) 
+  mv_cam_chase_dt: 1.0
+  
+# ============================================================================
+# Render options for assets
+# ============================================================================  
+render:
+  # Show NED reference frame axes in the scene
+  render_ned_frame: true
+  
+  # Show body-fixed UAV frame axes
+  render_body_frame: true
+  
+  # Show propeller frame axes
+  render_prop_frames: false
+  
+  # Show all COG frames in the scene
+  render_all_COG_frames: false
+  
+  # Show the trajectory in the secene
+  render_trajectory: true
+  
+  # Show the biplane frame
+  render_biplane_frame: false
+  
+  # Show the chassis aerodynamic drag frame
+  render_chassis_drag_frame: false
+  
+  # Show the chassis aerodynamic wing frames
+  render_wing_aero_frames: false
+
+  # Toggle shadow rendering (GPU-intensive)
+  render_shadows: false
+
+  # Visualize collision/contact boundaries
+  render_collision_zones: false
+
+
+# ============================================================================
+# Window & UI Options
+# ============================================================================
+window:
+  # (px) Window width for the display
+  width: 1000
+  
+  # (px) Window height for the display
+  height: 1000
+  
+  # Title bar text for visualization window
+  title: "ACSL PHYSICS SIMULATOR"

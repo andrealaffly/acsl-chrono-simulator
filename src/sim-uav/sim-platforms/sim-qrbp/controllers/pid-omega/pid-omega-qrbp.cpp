@@ -411,10 +411,10 @@ void pid_omega::ConfigureHeaders()
         << "Thrust Motor 2 [N], "
         << "Thrust Motor 3 [N], "
         << "Thrust Motor 4 [N], "
-        << "Normalized Thrust Motor 1 [-], "
-        << "Normalized Thrust Motor 2 [-], "
-        << "Normalized Thrust Motor 3 [-], "
-        << "Normalized Thrust Motor 4 [-], "
+        << "Normalized Thrust 1 [-], "
+        << "Normalized Thrust 2 [-], "
+        << "Normalized Thrust 3 [-], "
+        << "Normalized Thrust 4 [-], "
         ;    
 
     try {

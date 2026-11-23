@@ -159,5 +159,13 @@ def setup_style(root: tk.Tk) -> ttk.Style:
 
     # --- Scrollbar --------------------------------------------------------
     style.configure("Vertical.TScrollbar", background=SURFACE_2, troughcolor=BG, bordercolor=BG, arrowcolor=MUTED, relief="flat")
+    style.configure("Horizontal.TScrollbar", background=SURFACE_2, troughcolor=BG, bordercolor=BG, arrowcolor=MUTED, relief="flat")
+
+    # --- Tables and progress (GA page) --------------------------------------
+    style.configure("Results.Treeview", background=FIELD, fieldbackground=FIELD, foreground=TEXT, borderwidth=0, rowheight=24, font=(FONT_FAMILY, 9))
+    style.map("Results.Treeview", background=[("selected", RED)], foreground=[("selected", "#ffffff")])
+    style.configure("Results.Treeview.Heading", background=SURFACE_2, foreground=MUTED, borderwidth=0, font=(FONT_FAMILY, 9, "bold"))
+    style.map("Results.Treeview.Heading", background=[("active", BORDER)])
+    style.configure("Accent.Horizontal.TProgressbar", troughcolor=SURFACE_2, background=RED, bordercolor=BORDER, lightcolor=RED, darkcolor=RED)
 
     return style

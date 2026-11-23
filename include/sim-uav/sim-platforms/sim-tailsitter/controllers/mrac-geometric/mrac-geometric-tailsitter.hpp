@@ -185,13 +185,13 @@ struct controller_internal_members {
     
     Eigen::Matrix<double, 3, 3> Rji;                               // Rotation matrix from the body to the inertial frame
     Eigen::Matrix<double, 3, 3> Rij;                               // Rotation matrix from the inertial to the body frame
-    Eigen::Matrix<double, 3, 1> c1;                                // Desired "heading" vector in the inertial frame
+    Eigen::Matrix<double, 3, 1> c2;                                // Desired "lateral" (wingspan) vector in the inertial frame
     Eigen::Matrix<double, 3, 1> b3d;                               // Desired body z axis
     Eigen::Matrix<double, 3, 1> b2d;                               // Desired body y axis
     Eigen::Matrix<double, 3, 1> b1d;                               // Desired body x axis
     Eigen::Matrix<double, 3, 3> R_d;                               // Desired rotation matrix
 
-    Eigen::Matrix<double, 3, 1> c1_dot;                            // Desired "heading rate" vector in the inertial frame
+    Eigen::Matrix<double, 3, 1> c2_dot;                            // Desired "lateral" (wingspan) vector rate in the inertial frame
     Eigen::Matrix<double, 3, 1> n_hat;                             // Intermediate variable to compute b2d_dot
     Eigen::Matrix<double, 3, 1> n_hat_dot;                         // Intermediate variable to compute b2d_dot
     double sigma;                                                  // Intermediate variable to compute b2d_dot

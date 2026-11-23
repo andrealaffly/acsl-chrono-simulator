@@ -1,0 +1,52 @@
+# **********************************************************************************************************************
+ # Copyright (c) 2025 Giri M. Kumar, Mattia Gramuglia, Andrea L'Afflitto. All rights reserved.
+ #
+ # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ # following conditions are met:
+ #
+ # 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+ #    disclaimer.
+ #
+ # 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+ #    following disclaimer in the documentation and/or other materials provided with the distribution.
+ #
+ # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+ #    products derived from this software without specific prior written permission.
+ #
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ # INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# **********************************************************************************************************************
+
+########################################################################################################################
+# Wrapper config
+#
+# Configures "wrapper" mode: running many back-to-back / concurrent simulations
+# from a single invocation of scripts/wrapper.py instead of one simulation per
+# manual launch.
+#
+# NOTES:
+# - This file is only read by scripts/wrapper.py. The C++ simulator itself only
+#   checks mode.enable_wrapper in sim-config.yaml to decide how to lay out its
+#   log directory (see ConfigureLogDirectoryWrapperRun in sim-logger.cpp).
+# - This file is copied into the shared wrapper log directory
+#   (sim-log/<platform>/wrapper/config/) for reproducibility, same as the
+#   other config files.
+########################################################################################################################
+
+# ============================================================================
+# Wrapper Run Settings
+# ============================================================================
+wrapper:
+  # Total number of simulation runs to execute across the whole session.
+  total_runs: 100
+
+  # Maximum number of simulations to run concurrently. Runs are launched this
+  # many at a time (staggered 1 second apart), and a new run is started as
+  # soon as a slot frees up, in a rolling fashion, until total_runs have been
+  # completed.
+  concurrent_runs: 3

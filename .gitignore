@@ -26,3 +26,7 @@ Temporary Items
 scripts/__pycache__/
 scripts/acsl_gui/__pycache__/
 scripts/acsl_gui/pages/__pycache__/
+python-modules/**/__pycache__/
+
+# Local scratch notes (lockstep plan, session notes, etc.) -> never commit these to the repo
+tmp/

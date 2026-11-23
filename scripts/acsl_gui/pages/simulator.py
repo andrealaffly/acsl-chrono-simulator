@@ -67,18 +67,14 @@ from __future__ import annotations
 import os
 import shutil
 import signal
-import subprocess
 import sys
-import threading
-import time
 import tkinter as tk
 from pathlib import Path
-from queue import Empty, Queue
-from tkinter import messagebox, ttk
+from tkinter import ttk
 from typing import Optional
 
-from .. import theme
-from ..ansi import AnsiConsole
+from .. import dialogs, theme
+from ..console import ProcessConsole
 from .base import Page
 
 
@@ -142,20 +138,14 @@ class SimulatorPage(Page):
     key = "simulator"
     label = "Simulator"
 
-    POLL_INTERVAL_MS = 15
-    MAX_POLL_WORK_MS = 20
-
     def __init__(self, shell, repo_dir: Path) -> None:
         super().__init__(shell)
         self.repo_dir = repo_dir
         self.build_dir = repo_dir / "build"
         self.wrapper_script = repo_dir / "scripts" / "wrapper.py"
-        self._process: Optional[subprocess.Popen] = None
         self._active_kind: Optional[str] = None  # "build" | "run" | "wrapper" | None
-        self._output_queue: "Queue[object]" = Queue()
         self._cards: dict[str, _ActionCard] = {}
-        self._console: Optional[tk.Text] = None
-        self._ansi_console: Optional[AnsiConsole] = None
+        self._console: Optional[ProcessConsole] = None
 
     # --- Page interface ---------------------------------------------------
     def build(self, parent: ttk.Frame) -> tk.Widget:
@@ -181,24 +171,8 @@ class SimulatorPage(Page):
 
         ttk.Label(root, text="Console", style="SubHeading.TLabel").pack(anchor="w", pady=(4, 6))
 
-        console_border = tk.Frame(root, bg=theme.BORDER)
-        console_border.pack(fill="both", expand=True)
-        self._console = tk.Text(
-            console_border,
-            bg=theme.FIELD,
-            fg=theme.TEXT,
-            insertbackground=theme.TEXT,
-            borderwidth=0,
-            highlightthickness=0,
-            font=("DejaVu Sans Mono", 9),
-            wrap="word",
-            state="disabled",
-        )
-        scrollbar = ttk.Scrollbar(console_border, orient="vertical", command=self._console.yview, style="Vertical.TScrollbar")
-        self._console.configure(yscrollcommand=scrollbar.set)
-        self._console.pack(side="left", fill="both", expand=True, padx=1, pady=1)
-        scrollbar.pack(side="right", fill="y")
-        self._ansi_console = AnsiConsole(self._console)
+        self._console = ProcessConsole(root, self.shell.root)
+        self._console.frame.pack(fill="both", expand=True)
 
         return root
 
@@ -206,16 +180,12 @@ class SimulatorPage(Page):
         return self._active_kind is not None
 
     def on_close(self) -> None:
-        self._terminate_process()
+        if self._console is not None:
+            self._console.send_signal()
 
-    # --- Console ------------------------------------------------------------
     def _append_console(self, text: str) -> None:
-        if self._console is None or self._ansi_console is None:
-            return
-        self._console.configure(state="normal")
-        self._ansi_console.write(text)
-        self._console.see("end")
-        self._console.configure(state="disabled")
+        if self._console is not None:
+            self._console.write(text)
 
     # --- Button state machine ------------------------------------------------
     def _set_busy(self, kind: Optional[str]) -> None:
@@ -234,7 +204,7 @@ class SimulatorPage(Page):
         if self._active_kind is not None:
             return
         if not self.build_dir.is_dir():
-            messagebox.showerror("Build folder missing", f"{self.build_dir} does not exist.", parent=self.shell.root)
+            dialogs.show_error(self.shell.root, "Build folder missing", f"{self.build_dir} does not exist.")
             return
         self._set_busy("build")
         self.shell.set_status("Building...")
@@ -245,7 +215,7 @@ class SimulatorPage(Page):
         if not (self.build_dir / "CMakeCache.txt").is_file():
             steps.append(["cmake", ".."])
         steps.append(["make", f"-j{os.cpu_count() or 1}"])
-        self._run_steps(steps, self.build_dir, self._on_build_exit)
+        self._console.run_steps(steps, self.build_dir, self._on_build_exit)
 
     def _on_build_exit(self, returncode: int) -> None:
         self._set_busy(None)
@@ -261,12 +231,14 @@ class SimulatorPage(Page):
         if self._active_kind is not None:
             return
         if not self.build_dir.is_dir():
-            messagebox.showerror("Build folder missing", f"{self.build_dir} does not exist.", parent=self.shell.root)
+            dialogs.show_error(self.shell.root, "Build folder missing", f"{self.build_dir} does not exist.")
             return
-        if not messagebox.askyesno(
+        if not dialogs.ask_yes_no(
+            self.shell.root,
             "Clean build folder",
             f"Delete every generated file in {self.build_dir}, keeping only .gitignore and .gitkeep?\n\nThis cannot be undone.",
-            parent=self.shell.root,
+            yes="Clean",
+            no="Cancel",
         ):
             return
 
@@ -283,7 +255,7 @@ class SimulatorPage(Page):
                 removed += 1
         except OSError as error:
             self._append_console(f"\nClean failed: {error}\n")
-            messagebox.showerror("Clean failed", str(error), parent=self.shell.root)
+            dialogs.show_error(self.shell.root, "Clean failed", str(error))
             return
 
         self._append_console(f"\nCleaned {self.build_dir} ({removed} item(s) removed).\n")
@@ -295,11 +267,11 @@ class SimulatorPage(Page):
             return
         executable = self.build_dir / "acsl_sim"
         if not executable.is_file():
-            messagebox.showerror("Executable missing", f"{executable} was not found. Build the simulator first.", parent=self.shell.root)
+            dialogs.show_error(self.shell.root, "Executable missing", f"{executable} was not found. Build the simulator first.")
             return
         self._set_busy("run")
         self.shell.set_status("Simulator running...")
-        self._start_process(["./acsl_sim"], self.build_dir, self._on_run_exit)
+        self._console.start(["./acsl_sim"], self.build_dir, self._on_run_exit)
 
     def _on_run_exit(self, returncode: int) -> None:
         self._set_busy(None)
@@ -311,13 +283,13 @@ class SimulatorPage(Page):
         if self._active_kind is not None:
             return
         if not self.wrapper_script.is_file():
-            messagebox.showerror("Wrapper script missing", f"{self.wrapper_script} was not found.", parent=self.shell.root)
+            dialogs.show_error(self.shell.root, "Wrapper script missing", f"{self.wrapper_script} was not found.")
             return
         self._set_busy("wrapper")
         self.shell.set_status("Wrapper running...")
         # Run with the same interpreter this GUI is running under, so it
         # picks up whatever environment/venv already has PyYAML available.
-        self._start_process([sys.executable, str(self.wrapper_script)], self.repo_dir, self._on_wrapper_exit)
+        self._console.start([sys.executable, str(self.wrapper_script)], self.repo_dir, self._on_wrapper_exit)
 
     def _on_wrapper_exit(self, returncode: int) -> None:
         self._set_busy(None)
@@ -331,122 +303,4 @@ class SimulatorPage(Page):
         target = "wrapper" if self._active_kind == "wrapper" else "simulator"
         self._append_console(f"\nSending interrupt to {target} (Ctrl+C)...\n")
         self.shell.set_status(f"Stopping {target}...")
-        self._terminate_process(signal.SIGINT)
-
-    # --- Subprocess plumbing -------------------------------------------------
-    def _run_steps(self, commands: list[list[str]], cwd: Path, on_exit) -> None:
-        """Run a sequence of commands in cwd, one after another, stopping (and
-        reporting that step's exit code) the first time one fails."""
-
-        def run_step(index: int) -> None:
-            if index >= len(commands):
-                on_exit(0)
-                return
-
-            def step_exit(returncode: int) -> None:
-                if returncode != 0:
-                    on_exit(returncode)
-                else:
-                    run_step(index + 1)
-
-            self._start_process(commands[index], cwd, step_exit)
-
-        run_step(0)
-
-    def _start_process(self, command: list[str], cwd: Path, on_exit) -> None:
-        if self._ansi_console is not None:
-            self._ansi_console.reset()
-        self._append_console(f"\n$ {' '.join(command)}   (in {cwd})\n")
-        try:
-            self._process = subprocess.Popen(
-                command,
-                cwd=str(cwd),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-        except OSError as error:
-            self._append_console(f"error: {error}\n")
-            self._set_busy(None)
-            return
-
-        process = self._process
-
-        def reader() -> None:
-            assert process.stdout is not None
-            for line in process.stdout:
-                self._output_queue.put(line)
-            process.wait()  # reap it; avoids a zombie once it has exited
-
-        threading.Thread(target=reader, daemon=True).start()
-        self._poll_output(on_exit)
-
-    def _drain_once(self) -> bool:
-        # A chatty simulator can enqueue lines far faster than the Text
-        # widget can render them. Draining the whole queue in a single call
-        # would run inside one Tk event-loop tick and freeze the UI for as
-        # long as output kept arriving. A *line-count* cap isn't enough on
-        # its own: colored lines cost several Text.insert() calls each (one
-        # per color run), so the same cap that's safe for plain text can
-        # still block for a while once color is involved. Capping by a
-        # wall-clock work budget instead adapts to that automatically.
-        any_output = False
-        deadline = time.monotonic() + (self.MAX_POLL_WORK_MS / 1000)
-        if self._console is not None:
-            self._console.configure(state="normal")
-        try:
-            while True:
-                item = self._output_queue.get_nowait()
-                if self._ansi_console is not None:
-                    self._ansi_console.write(str(item))
-                any_output = True
-                if time.monotonic() >= deadline:
-                    break
-        except Empty:
-            pass
-        if self._console is not None:
-            if any_output:
-                self._console.see("end")
-            self._console.configure(state="disabled")
-        return any_output
-
-    def _poll_output(self, on_exit) -> None:
-        self._drain_once()
-
-        # Whether the process has exited is checked directly via poll()
-        # rather than waiting for a sentinel at the back of the output
-        # queue: a burst of output can leave hundreds of thousands of lines
-        # queued ahead of that sentinel, which would mean Quit's effect on
-        # the UI (re-enabling Run/Build/Clean, disabling Quit) stays stuck
-        # behind fully rendering that backlog -- exactly the "takes a bit
-        # before it actually stops" symptom. poll() answers immediately;
-        # any remaining queued output keeps draining afterward in the
-        # background, uncoupled from the busy/idle state.
-        process = self._process
-        if process is not None and process.poll() is not None:
-            returncode = process.returncode
-            self._process = None
-            on_exit(returncode)
-            if not self._output_queue.empty():
-                self.shell.root.after(self.POLL_INTERVAL_MS, self._drain_remaining)
-            return
-        self.shell.root.after(self.POLL_INTERVAL_MS, lambda: self._poll_output(on_exit))
-
-    def _drain_remaining(self) -> None:
-        """Keep flushing leftover queued output after the process has
-        already exited and the UI has already gone back to idle."""
-        if self._drain_once():
-            self.shell.root.after(self.POLL_INTERVAL_MS, self._drain_remaining)
-
-    def _terminate_process(self, sig: Optional[signal.Signals] = None) -> None:
-        process = self._process
-        if process is None or process.poll() is not None:
-            return
-        try:
-            if sig is not None:
-                process.send_signal(sig)
-            else:
-                process.terminate()
-        except ProcessLookupError:
-            pass
+        self._console.send_signal(signal.SIGINT)

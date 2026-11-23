@@ -1,0 +1,5 @@
+1. In sim-config.yaml: set mode.enable_wrapper: true, set debug.terminal: false, and select a controller.  mrac_geometric is the suggested pilot.
+
+2. In vis-config.yaml: set main.enable_vis: false.
+
+3. In the GUI, open Genetic Algorithm, pick modes on the Gains tab, then Start.

@@ -1,0 +1,88 @@
+# **********************************************************************************************************************
+ # Copyright (c) 2025 Giri M. Kumar, Mattia Gramuglia, Andrea L'Afflitto. All rights reserved.
+ # 
+ # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ # following conditions are met:
+ # 
+ # 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+ #    disclaimer.
+ # 
+ # 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+ #    following disclaimer in the documentation and/or other materials provided with the distribution.
+ # 
+ # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+ #    products derived from this software without specific prior written permission.
+ # 
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ # INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# **********************************************************************************************************************
+
+########################################################################################################################
+# Chrono Physics Engine Configuration
+#
+# This YAML file defines the main parameters for the Chrono physics system.
+# Use it to configure gravity, solvers, and collision settings for UAV simulation.
+#
+# NOTE: Boolean flags below use `true`/`false` — YAML is case-insensitive.
+########################################################################################################################
+
+
+# ============================================================================
+# Physics Settings
+# ============================================================================
+physics:
+  # Enable gravity in NED frame | true  → Apply Earth gravity | false → Zero-gravity simulation
+  gravity: true
+
+
+# ============================================================================
+# Solver Settings
+# IMPORTANT: Only one solver should be enabled at a time
+# ============================================================================
+solver:
+  # Projected SOR solver
+  PSOR: true
+  
+  # Solver iteration settings - Maximum solver iterations per timestep. 
+  # Depending on CPU architecture, you might have to increase this if
+  # you repeatedly encounter nan values in the states.
+  MaxIterations: 150
+  
+  # Warm start option — speeds up convergence by using previous solutions
+  EnableWarmStart: true
+
+  # Size of each iteration step
+  StepSize: 5e-3
+
+  # Set to true to maintain soft real-time pacing for every simulation tick.
+  # This feature is strongly recommended to be swithed off unless necessary.
+  ThrottleRealTime: false
+
+
+# ============================================================================
+# Collision Settings
+# IMPORTANT: Only one collision system should be enabled at a time
+# ============================================================================
+collision:
+  # Bullet collision system (recommended for general use)
+  BULLET: true
+
+  # Multicore collision system (set true for parallel CPU use)
+  MULTICORE: false
+  
+  # Collision envelope thickness
+  DefaultSuggestedEnvelope: 0.003
+
+  # Minimum distance before contact triggers
+  DefaultSuggestedMargin: 0.003
+  
+  # Separation distance at which contact is broken
+  ContactBreakingThreshold: 0.002
+
+
+
