@@ -150,8 +150,6 @@ public:
     // Implementation: sim-bridge.cpp
     // ------------------------------------------------------------------------
     void ConfigureLogDirectory();
-    void ConfigureLogDirectorySingleRun();
-    void ConfigureLogDirectoryWrapperRun();
 
     // ------------------------------------------------------------------------
     // Accessor: Returns references to physics and control loggers.
@@ -196,11 +194,6 @@ private:
     // ------------------------------------------------------------------------
     ::_acsl_::_bridge_::platforms available_uavs;
     std::string active_platform;
-
-    // ------------------------------------------------------------------------
-    // Boolean to tell if you are in wrapper mode or not
-    // ------------------------------------------------------------------------
-    bool wrapper_mode = false;
 };
 
 

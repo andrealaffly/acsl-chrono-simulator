@@ -63,7 +63,7 @@ LOGO_MAX_WIDTH = 620
 
 
 class AppShell:
-    WINDOW_WIDTH = 1500
+    WINDOW_WIDTH = 1180
     WINDOW_HEIGHT = 860
     SIDEBAR_WIDTH = 220
 
@@ -99,9 +99,6 @@ class AppShell:
         except tk.TclError:
             return None
         if image.width() > LOGO_MAX_WIDTH:
-            # subsample() only takes an integer factor, so round the needed
-            # shrink factor UP (ceiling division) -- rounding down could
-            # still leave the image wider than LOGO_MAX_WIDTH.
             factor = max(1, (image.width() + LOGO_MAX_WIDTH - 1) // LOGO_MAX_WIDTH)
             image = image.subsample(factor, factor)
         self._logo_image = image

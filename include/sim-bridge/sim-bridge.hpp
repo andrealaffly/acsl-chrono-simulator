@@ -38,17 +38,14 @@
 #ifndef SIM_BRIDGE_HPP_
 #define SIM_BRIDGE_HPP_
 
-#include "sim-system.hpp"                   // Import the physics and visual system
-#include "sim-logger.hpp"                   // Import the header file for the Logger API
-#include "sim-platforms.hpp"                // Import the header file with all the platforms
-#include "sim-uav.hpp"                      // Import the header file for the UAV API
-#include "sim-locales.hpp"                  // Import the header file with all the environments
-#include "sim-environment.hpp"              // Import the header file for the ENV API
-#include "sim-traj-selection.hpp"           // Import the header file for the Trajectory selection module
-#include "sim-controllers.hpp"              // Import the header file for the controllers
-#include <random>                           // Import the random number generator for random geofenced origin selection
-#include "chrono/physics/ChBodyEasy.h"      // Import for the box to show geofencing
-
+#include "sim-system.hpp"           // Import the physics and visual system
+#include "sim-logger.hpp"           // Import the header file for the Logger API
+#include "sim-platforms.hpp"        // Import the header file with all the platforms
+#include "sim-uav.hpp"              // Import the header file for the UAV API
+#include "sim-locales.hpp"          // Import the header file with all the environments
+#include "sim-environment.hpp"      // Import the header file for the ENV API
+#include "sim-traj-selection.hpp"   // Import the header file for the Trajectory selection module
+#include "sim-controllers.hpp"      // Import the header file for the controllers
 
 namespace _acsl_
 {
@@ -213,7 +210,6 @@ private:
     bool enable_wing_aerodynamics_dbg;  // <- Stands for aerodynamics push terminal.
     bool enable_chassis_drag;           // <- Stands for enable chassis drag.
     bool enable_biplane_frame_data;     // <- Use Biplane frame data.
-    bool enable_wrapper;                // <- Use wrapper mode for batch runs.
     bool treat_as_rigid_body;           // <- Use the u1-u4 control inputs &
                                         //    treat the uav as a rigid body
     
@@ -226,26 +222,6 @@ private:
         double time_of_disturbance;
         double total_efficiency;
     } motor_disturbance;
-
-    // ------------------------------------------------------------------------
-    // Struct to store the origin settings for the UAV
-    // ------------------------------------------------------------------------
-    struct origin_settings {
-        bool set_origin_to_zero;
-
-        bool set_origin_to_custom;
-        double custom_origin_x;
-        double custom_origin_y;
-        double custom_origin_z;
-
-        bool set_origin_to_random;
-        double geofence_min_x;
-        double geofence_max_x;
-        double geofence_min_y;
-        double geofence_max_y;
-        double geofence_min_z;
-        double geofence_max_z;
-    } origin_settings;
     
     // ------------------------------------------------------------------------
     // Boolean for telling the system it's debugging configuration

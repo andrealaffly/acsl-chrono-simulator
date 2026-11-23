@@ -58,17 +58,17 @@ camera:
   mv_cam_chase_ht: 1.0
 
   # (m) Distance the camera is placed in x (NED) 
-  mv_cam_chase_dt: 1.0
+  mv_cam_chase_dt: 0.15
   
 # ============================================================================
 # Render options for assets
 # ============================================================================  
 render:
   # Show NED reference frame axes in the scene
-  render_ned_frame: true
+  render_ned_frame: false
   
   # Show body-fixed UAV frame axes
-  render_body_frame: true
+  render_body_frame: false
   
   # Show propeller frame axes
   render_prop_frames: false

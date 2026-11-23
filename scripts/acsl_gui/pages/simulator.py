@@ -36,30 +36,21 @@
 #              a.lafflitto@vt.edu
 #
 # Description:
-#     The Simulator page: dashboard-style Build / Clean / Run / Run Wrapper
-#     controls for the compiled simulator in build/, plus a live console and
-#     a Quit Simulation control that's only enabled while build/acsl_sim (Run)
-#     or scripts/wrapper.py (Run Wrapper) is actually running.
+#     The Simulator page: dashboard-style Build / Clean / Run controls for
+#     the compiled simulator in build/, plus a live console and a Quit
+#     Simulation control that's only enabled while build/acsl_sim is
+#     actually running.
 #
-#       Build        - runs `make` in build/.
-#       Clean        - deletes every generated file/directory under build/
-#                      except .gitignore and .gitkeep (asks for confirmation
-#                      first).
-#       Run          - launches build/acsl_sim directly, for a single sim.
-#       Run Wrapper  - launches scripts/wrapper.py, which itself launches
-#                      build/acsl_sim some number of times per
-#                      config/wrapper-config.yaml (see that script for the
-#                      concurrency/rolling-run details); this page just runs
-#                      it as one more subprocess and shows its output.
-#       Quit         - sends SIGINT (as if Ctrl+C) to whichever of the above
-#                      is currently running; disabled otherwise. Wrapper.py
-#                      handles SIGINT itself (stopping its child sims and
-#                      closing out the session marker), so this is the same
-#                      "ask it to shut down cleanly" signal either way.
+#       Build  - runs `make` in build/.
+#       Clean  - deletes every generated file/directory under build/ except
+#                .gitignore and .gitkeep (asks for confirmation first).
+#       Run    - launches build/acsl_sim.
+#       Quit   - sends SIGINT (as if Ctrl+C) to the running acsl_sim process;
+#                disabled unless Run is currently active.
 #
-#     Build/Clean/Run/Run Wrapper all share one "is something running" state
-#     so they can't step on each other, and the running subprocess (if any)
-#     is stopped when the app window closes (see Page.on_close).
+#     Build/Clean/Run all share one "is something running" state so they
+#     can't step on each other, and the running subprocess (if any) is
+#     stopped when the app window closes (see Page.on_close).
 ###############################################################################
 
 from __future__ import annotations
@@ -68,7 +59,6 @@ import os
 import shutil
 import signal
 import subprocess
-import sys
 import threading
 import time
 import tkinter as tk
@@ -149,9 +139,8 @@ class SimulatorPage(Page):
         super().__init__(shell)
         self.repo_dir = repo_dir
         self.build_dir = repo_dir / "build"
-        self.wrapper_script = repo_dir / "scripts" / "wrapper.py"
         self._process: Optional[subprocess.Popen] = None
-        self._active_kind: Optional[str] = None  # "build" | "run" | "wrapper" | None
+        self._active_kind: Optional[str] = None  # "build" | "run" | None
         self._output_queue: "Queue[object]" = Queue()
         self._cards: dict[str, _ActionCard] = {}
         self._console: Optional[tk.Text] = None
@@ -166,17 +155,16 @@ class SimulatorPage(Page):
 
         actions = ttk.Frame(root, style="App.TFrame")
         actions.pack(fill="x", pady=(0, 16))
-        for column in range(5):
+        for column in range(4):
             actions.columnconfigure(column, weight=1, uniform="cards")
 
         self._cards["build"] = _ActionCard(actions, "Build", "Run make in build/.", self._on_build)
         self._cards["clean"] = _ActionCard(actions, "Clean", "Delete generated files in build/ (keeps .gitignore and .gitkeep).", self._on_clean)
         self._cards["run"] = _ActionCard(actions, "Run", "Launch build/acsl_sim.", self._on_run)
-        self._cards["wrapper"] = _ActionCard(actions, "Run Wrapper", "Launch scripts/wrapper.py.", self._on_wrapper)
-        self._cards["quit"] = _ActionCard(actions, "Quit Simulation", "Stop the running simulator or wrapper (Ctrl+C).", self._on_quit)
+        self._cards["quit"] = _ActionCard(actions, "Quit Simulation", "Stop the running simulator (Ctrl+C).", self._on_quit)
         self._cards["quit"].set_enabled(False)
 
-        for index, key in enumerate(["build", "clean", "run", "wrapper", "quit"]):
+        for index, key in enumerate(["build", "clean", "run", "quit"]):
             self._cards[key].grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 8, 0))
 
         ttk.Label(root, text="Console", style="SubHeading.TLabel").pack(anchor="w", pady=(4, 6))
@@ -224,10 +212,7 @@ class SimulatorPage(Page):
         self._cards["build"].set_enabled(idle)
         self._cards["clean"].set_enabled(idle)
         self._cards["run"].set_enabled(idle)
-        self._cards["wrapper"].set_enabled(idle)
-        # Quit is only meaningful for Run/Run Wrapper (stopping Build/Clean
-        # partway through could leave build/ in a broken state).
-        self._cards["quit"].set_enabled(kind in ("run", "wrapper"), accent_when_enabled=True)
+        self._cards["quit"].set_enabled(kind == "run", accent_when_enabled=True)
 
     # --- Build ---------------------------------------------------------------
     def _on_build(self) -> None:
@@ -306,31 +291,11 @@ class SimulatorPage(Page):
         self._append_console(f"\nSimulator exited (code {returncode}).\n")
         self.shell.set_status("Simulator stopped.")
 
-    # --- Wrapper ---------------------------------------------------------
-    def _on_wrapper(self) -> None:
-        if self._active_kind is not None:
-            return
-        if not self.wrapper_script.is_file():
-            messagebox.showerror("Wrapper script missing", f"{self.wrapper_script} was not found.", parent=self.shell.root)
-            return
-        self._set_busy("wrapper")
-        self.shell.set_status("Wrapper running...")
-        # Run with the same interpreter this GUI is running under, so it
-        # picks up whatever environment/venv already has PyYAML available.
-        self._start_process([sys.executable, str(self.wrapper_script)], self.repo_dir, self._on_wrapper_exit)
-
-    def _on_wrapper_exit(self, returncode: int) -> None:
-        self._set_busy(None)
-        self._append_console(f"\nWrapper exited (code {returncode}).\n")
-        self.shell.set_status("Wrapper stopped.")
-
-    # --- Quit (Run or Run Wrapper) -----------------------------------------
     def _on_quit(self) -> None:
-        if self._active_kind not in ("run", "wrapper"):
+        if self._active_kind != "run":
             return
-        target = "wrapper" if self._active_kind == "wrapper" else "simulator"
-        self._append_console(f"\nSending interrupt to {target} (Ctrl+C)...\n")
-        self.shell.set_status(f"Stopping {target}...")
+        self._append_console("\nSending interrupt to simulator (Ctrl+C)...\n")
+        self.shell.set_status("Stopping simulator...")
         self._terminate_process(signal.SIGINT)
 
     # --- Subprocess plumbing -------------------------------------------------

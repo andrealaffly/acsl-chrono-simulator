@@ -60,8 +60,6 @@ REPO_DIR = SCRIPT_DIR.parent
 CONFIG_DIR = REPO_DIR / "config"
 
 
-# Checked before anything else imports tkinter, so a missing system package
-# fails with a one-line fix instead of a raw ModuleNotFoundError traceback.
 def _require_tkinter() -> None:
     if importlib.util.find_spec("tkinter") is not None:
         return
@@ -77,10 +75,6 @@ def _require_tkinter() -> None:
 def main() -> int:
     _require_tkinter()
 
-    # Imported here, not at module scope, so _require_tkinter()'s friendly
-    # error above is what a missing tkinter shows -- these all pull in
-    # tkinter transitively, and a top-level import would fail before that
-    # check ever ran.
     from acsl_gui.pages.settings import SettingsPage
     from acsl_gui.pages.simulator import SimulatorPage
     from acsl_gui.shell import AppShell

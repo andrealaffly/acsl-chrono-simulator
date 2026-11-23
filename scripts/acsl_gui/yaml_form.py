@@ -60,16 +60,9 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Optional, Union
 
-# Matches a "key: value" line and captures its indent, key, and everything
-# after the colon (which may hold a value, a trailing comment, both, or
-# neither -- _split_value_and_comment sorts that out).
 _LINE_RE = re.compile(r"^(?P<indent>[ \t]*)(?P<key>[A-Za-z0-9_\-]+):(?P<rest>.*)$")
-# A comment line that's purely a "====" / "----" / "!!!" style rule, not real
-# text -- these separate sections in the config files and aren't help text.
 _DIVIDER_RE = re.compile(r"^[=\-#!\s]*$")
 _INT_RE = re.compile(r"^[+-]?\d+$")
-# Requires a decimal point or exponent so "10" stays an int and only "10.0" /
-# "1e3" are typed as float, matching how these config files write each.
 _FLOAT_RE = re.compile(r"^[+-]?(\d+\.\d*|\.\d+|\d+)([eE][+-]?\d+)?$")
 
 

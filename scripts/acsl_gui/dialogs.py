@@ -54,8 +54,6 @@ from typing import Optional
 from . import theme
 
 
-# Centers on the parent's toplevel window (not the screen), so a dialog
-# opened over the app stays visually anchored to it on a multi-monitor setup.
 def _center_over_parent(dialog: tk.Toplevel, parent: tk.Misc) -> None:
     dialog.update_idletasks()
     root = parent.winfo_toplevel()

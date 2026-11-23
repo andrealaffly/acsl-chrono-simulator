@@ -74,10 +74,6 @@ def _hex(rgb: tuple[int, int, int]) -> str:
     return "#{:02x}{:02x}{:02x}".format(*rgb)
 
 
-# The xterm 256-color index isn't one uniform space -- it's three separate
-# ranges laid end to end: 0-15 are the standard/bright 16 colors (looked up
-# directly), 16-231 are a 6x6x6 RGB color cube, and 232-255 are a 24-step
-# grayscale ramp. Each branch below decodes whichever range n falls in.
 def _xterm256_to_hex(n: int) -> str:
     if n < 8:
         return _hex(_STANDARD_RGB[n])

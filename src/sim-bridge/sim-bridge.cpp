@@ -103,7 +103,6 @@ void simbridge::ConfigureSimulatorFromConfig()
     // ------------------------------------------------------------------------
     this->efsl = config_file["mode"]["enable_flightstack_loop"].as_bool();
     this->enable_biplane_frame_data = config_file["mode"]["enable_biplane_frame_data"].as_bool();
-    this->enable_wrapper = config_file["mode"]["enable_wrapper"].as_bool();
     this->log2file = config_file["debug"]["log_physics"].as_bool();
     this->log2terminal = config_file["debug"]["terminal"].as_bool();
     this->sim_debug_stop = config_file["debug"]["sim_debug_stop"].as_bool();
@@ -127,35 +126,6 @@ void simbridge::ConfigureSimulatorFromConfig()
     this->motor_disturbance.time_of_disturbance = static_cast<double>(config_file["motor_disturbances"]["time_of_disturbance"].as_float());
     this->motor_disturbance.total_efficiency = static_cast<double>(config_file["motor_disturbances"]["total_efficiency"].as_float());
 
-    // ------------------------------------------------------------------------
-    // STEP 4.3 – Extract the origin setting for the UAV
-    // ------------------------------------------------------------------------
-    this->origin_settings.set_origin_to_zero = config_file["origin"]["set_origin_to_zero"].as_bool();
-    this->origin_settings.set_origin_to_custom = config_file["origin"]["set_origin_to_custom"].as_bool();
-    this->origin_settings.set_origin_to_random = config_file["origin"]["set_origin_to_random"].as_bool();
-
-    this->origin_settings.custom_origin_x = static_cast<double>(config_file["origin"]["custom_origin"]["x"].as_float());
-    this->origin_settings.custom_origin_y = static_cast<double>(config_file["origin"]["custom_origin"]["y"].as_float());
-    this->origin_settings.custom_origin_z = static_cast<double>(config_file["origin"]["custom_origin"]["z"].as_float());
-
-    this->origin_settings.geofence_min_x = static_cast<double>(config_file["origin"]["geofence"]["x_min"].as_float());
-    this->origin_settings.geofence_max_x = static_cast<double>(config_file["origin"]["geofence"]["x_max"].as_float());
-    this->origin_settings.geofence_min_y = static_cast<double>(config_file["origin"]["geofence"]["y_min"].as_float());
-    this->origin_settings.geofence_max_y = static_cast<double>(config_file["origin"]["geofence"]["y_max"].as_float());
-    this->origin_settings.geofence_min_z = static_cast<double>(config_file["origin"]["geofence"]["z_min"].as_float());
-    this->origin_settings.geofence_max_z = static_cast<double>(config_file["origin"]["geofence"]["z_max"].as_float());
-
-    // ------------------------------------------------------------------------
-    // STEP 4.4 – Checks for the origin settings to ensure only one option is selected
-    // ------------------------------------------------------------------------
-    int origin_mode_count = static_cast<int>(this->origin_settings.set_origin_to_zero)
-                       + static_cast<int>(this->origin_settings.set_origin_to_custom)
-                       + static_cast<int>(this->origin_settings.set_origin_to_random);
-
-    if (origin_mode_count > 1) {
-        _message_::SIMULATOR_ERROR("[SIMBRG]: MULTIPLE SET ORIGIN MODES SELECTED — EXACTLY ONE MUST BE TRUE.");
-    }
-    
     // ------------------------------------------------------------------------
     // STEP 5 – Populate available_locales dynamically from YAML
     //   asVectorRef() iterates all platform bools by name without hardcoding.
@@ -195,110 +165,6 @@ void simbridge::ConfigureSimulatorFromConfig()
     //   - Store the UAV in simbridge::m_uav (std::unique_ptr<simuavbase>).
     // ------------------------------------------------------------------------
     this->m_uav = available_uavs.createSelectedUAV(this->m_sys.GetPhysicsSystem());
-
-    // ------------------------------------------------------------------------
-    // STEP 6.3 – Shift the entire UAV (chassis + props + any extra bodies) to
-    //            an set target position, preserving relative geometry.
-    // ------------------------------------------------------------------------
-    if (this->origin_settings.set_origin_to_zero)
-    {
-        // Target position, in NED, converted to Chrono world coords.
-        chrono::ChVector3d target_ned(0.0, 0.0, 0.0);   // <-- hardcode target here
-        chrono::ChVector3d target_pos =
-            ::_shared_::_transformations_::GetChronoPosFromNED(target_ned);
-
-        // Chassis's current position is the pivot for the shift.
-        chrono::ChVector3d current_chassis_pos =
-            this->m_uav->GetUAVChassis().body->GetPos();
-
-        // Same delta applied to every body keeps relative offsets (and any
-        // already-initialized link/joint constraints) intact.
-        chrono::ChVector3d delta = target_pos - current_chassis_pos;
-
-        // Poll every body owned by the UAV and shift each by the same delta.
-        for (auto& body : this->m_uav->GetUAVBodyList()) {
-            body->SetPos(body->GetPos() + delta);
-        }
-    }
-    else if(this->origin_settings.set_origin_to_custom)
-    {
-        // Target position, in NED, converted to Chrono world coords.
-        chrono::ChVector3d target_ned(
-            this->origin_settings.custom_origin_x,
-            this->origin_settings.custom_origin_y,
-            this->origin_settings.custom_origin_z
-        );
-        chrono::ChVector3d target_pos =
-            ::_shared_::_transformations_::GetChronoPosFromNED(target_ned);
-
-        // Chassis's current position is the pivot for the shift.
-        chrono::ChVector3d current_chassis_pos =
-            this->m_uav->GetUAVChassis().body->GetPos();
-
-        // Same delta applied to every body keeps relative offsets (and any
-        // already-initialized link/joint constraints) intact.
-        chrono::ChVector3d delta = target_pos - current_chassis_pos;
-
-        // Poll every body owned by the UAV and shift each by the same delta.
-        for (auto& body : this->m_uav->GetUAVBodyList()) {
-            body->SetPos(body->GetPos() + delta);
-        }
-    }
-    else if (this->origin_settings.set_origin_to_random)
-    {
-        static std::mt19937 rng(std::random_device{}());
-        auto sample = [&](double lo, double hi) {
-            return std::uniform_real_distribution<double>(lo, hi)(rng);
-        };
-        auto target_ned = chrono::ChVector3d(
-            sample(this->origin_settings.geofence_min_x, this->origin_settings.geofence_max_x),
-            sample(this->origin_settings.geofence_min_y, this->origin_settings.geofence_max_y),
-            sample(this->origin_settings.geofence_min_z, this->origin_settings.geofence_max_z)
-        );
-
-        std::cout << target_ned << std::endl;
-
-        chrono::ChVector3d target_pos =
-            ::_shared_::_transformations_::GetChronoPosFromNED(target_ned);
-
-        // Chassis's current position is the pivot for the shift.
-        chrono::ChVector3d current_chassis_pos =
-            this->m_uav->GetUAVChassis().body->GetPos();
-
-        // Same delta applied to every body keeps relative offsets (and any
-        // already-initialized link/joint constraints) intact.
-        chrono::ChVector3d delta = target_pos - current_chassis_pos;
-
-        // Poll every body owned by the UAV and shift each by the same delta.
-        for (auto& body : this->m_uav->GetUAVBodyList()) {
-            body->SetPos(body->GetPos() + delta);
-        }
-
-        // --- Visualize the geofence bounds -----------------------------------
-        double x_size = this->origin_settings.geofence_max_x - this->origin_settings.geofence_min_x;
-        double y_size = this->origin_settings.geofence_max_y - this->origin_settings.geofence_min_y;
-        double z_size = this->origin_settings.geofence_max_z - this->origin_settings.geofence_min_z;
-        chrono::ChVector3d geofence_center_ned(
-            (this->origin_settings.geofence_min_x + this->origin_settings.geofence_max_x) / 2.0,
-            (this->origin_settings.geofence_min_y + this->origin_settings.geofence_max_y) / 2.0,
-            (this->origin_settings.geofence_min_z + this->origin_settings.geofence_max_z) / 2.0
-        );
-
-        auto geofence_marker = chrono_types::make_shared<chrono::ChBodyEasyBox>(
-            x_size, y_size, z_size,
-            /*density=*/1.0,     // irrelevant once fixed, but the constructor still wants one
-            /*visualize=*/true,
-            /*collide=*/false
-        );
-        geofence_marker->SetFixed(true);
-        geofence_marker->SetPos(::_shared_::_transformations_::GetChronoPosFromNED(geofence_center_ned));
-        geofence_marker->SetRot(::_shared_::_transformations_::GetChronoOrientaitonFromNED());
-
-        geofence_marker->GetVisualShape(0)->SetColor(chrono::ChColor(0.2f, 0.6f, 1.0f));
-        geofence_marker->GetVisualShape(0)->SetOpacity(0.15f);
-
-        this->m_sys.GetPhysicsSystem().Add(geofence_marker);
-    }
 
     // ------------------------------------------------------------------------
     // STEP 7 - Load in the trajectory module
@@ -406,8 +272,6 @@ void simbridge::ConfigureSimulatorFromConfig()
     _message_::SIMULATOR_INFO("[SIMBRG]:  - DEVELOPER MODE: "               + ::_shared_::_conversions_::bool2string(developer_mode));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - DEVELOPER MODE STEPS: "         + ::_shared_::_conversions_::bool2string(developer_mode_steps));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - HIL / SIL MODE : "              + ::_shared_::_conversions_::bool2string(efsl));
-    _message_::SIMULATOR_INFO("[SIMBRG]:  - BIPLANE MODE : "                + ::_shared_::_conversions_::bool2string(enable_biplane_frame_data));
-    _message_::SIMULATOR_INFO("[SIMBRG]:  - WRAPPER MODE : "                + ::_shared_::_conversions_::bool2string(enable_wrapper));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - CHASSIS DRAG ENABLED : "        + ::_shared_::_conversions_::bool2string(enable_chassis_drag));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - AERODYNAMICS ENABLED : "        + ::_shared_::_conversions_::bool2string(enable_wing_aerodynamics));
     _message_::SIMULATOR_INFO("[SIMBRG]:  - ACTIVE PLATFORM: "              + active_platform);
@@ -1342,17 +1206,14 @@ void simbridge::EverRun()
     // If you are in developer mode, you do not update the control input for the system
     if (this->developer_mode)
     {
-        // Without a debug stop time, developer mode runs forever (until
-        // externally interrupted); with one, it exits at sim_stop_time just
-        // like the non-developer debug-stop case below.
-        while (!this->sim_debug_stop || this->m_sys.GetPhysicsSystem().GetChTime() < this->sim_stop_time)
+        while (true)
         {
             // Update the vision system
             this->UpdateVisualizationSystem();
 
             // Update the physics system
             this->UpdatePhysicsSystem();
-
+            
             // If you need a pause
             EverPause();
         }

@@ -49,9 +49,6 @@ mode:
   # Set to true to use the biplane frame in control computation
   enable_biplane_frame_data: false
 
-  # Set to true to enable wrapper mode
-  enable_wrapper: false
-
 # ============================================================================
 # Debugging toggles
 # ============================================================================
@@ -66,7 +63,7 @@ debug:
   sim_debug_stop: false
 
   # Set the value at which you want the simulation to stop (in seconds)
-  sim_stop_time: 15.0
+  sim_stop_time: 23.0
 
   # Set to true if you want the system to import model and not execute contorl
   developer_mode: false
@@ -87,39 +84,13 @@ platform:
   qrbp: false
   
   # Set to true to import the tailsitter
-  tailsitter: false
+  tailsitter: true
   
   # Set to true to import the medium quadcotper
-  quadm: true
+  quadm: false
   
   # Set to true to import the x8 cotper
   x8: false
-
-# ============================================================================
-# UAV Origin Selection
-# IMPORTANT: Only one origin modifier is set at a time
-# ============================================================================
-origin:
-  # Set to true to import the drone at (0,0,0) in the inertial frame
-  set_origin_to_zero: true
-
-  # Set to true to import the drone at (X,Y,Z) in the inertial frame
-  set_origin_to_custom: false
-  custom_origin:
-    x: 0.3
-    y: 0.25
-    z: 0.0
-
-  # Set to true to import the drone at random location inside the geofence
-  set_origin_to_random: false
-  geofence:
-    x_min: -1.0
-    x_max: 1.0
-    y_min: -1.0
-    y_max: 1.0
-    z_min: -1.1
-    z_max: -2.5
-
 
 # ============================================================================
 # UAV Aerodynamics Selection
@@ -129,10 +100,10 @@ origin:
 # ============================================================================
 aerodynamics:
   # Set to true to enable the chassis drag aerodynamics
-  chassis_drag: false
+  chassis_drag: true
   
   # Set to true to enable the wing aerodynamics (if present)
-  wing_aero: false
+  wing_aero: true
   
   # Set to true to print the wing aerodynamic state data to the terminal screen
   aero_terminal: false
@@ -175,10 +146,10 @@ controller:
     tlmrac: false
   tailsitter:
     mrac_geometric: false
-    mrac_hybrid: false
+    mrac_hybrid: true
   quadm:
     mrac_omega: false
-    mrac_geometric: true
+    mrac_geometric: false
     mrac_geometric_na_ebci: false
     rkhs_mrac_geometric: false
   x8:
@@ -209,7 +180,7 @@ poly:
   # Set to true to use the segmented minimum-jerk polynomial trajectory module
   enabled: true
   # Type in the trajectory filename that needs to be imported
-  filename: bean_trajectory0p3
+  filename: faster_bank_traj0p8
   # Type in the filetype of the trajectory filename that needs to be imported
   filetype: json
 

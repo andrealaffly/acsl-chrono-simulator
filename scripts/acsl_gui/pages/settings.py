@@ -76,7 +76,7 @@ from .. import dialogs, theme
 from ..yaml_form import Document, Field, Section, ValueType, humanize
 from .base import Page
 
-CONFIG_FILES = ["sim-config.yaml", "phy-config.yaml", "vis-config.yaml", "wrapper-config.yaml"]
+CONFIG_FILES = ["sim-config.yaml", "phy-config.yaml", "vis-config.yaml"]
 
 # The mission living directly in config/ (as opposed to a named config/<name>/
 # folder saved via Save Mission).
@@ -90,7 +90,6 @@ TAB_LABELS = {
     "sim-config.yaml": "Simulator",
     "phy-config.yaml": "Physics",
     "vis-config.yaml": "Visualization",
-    "wrapper-config.yaml": "Wrapper",
 }
 
 # Explicit top-level section order per file. Sections present in the file but
@@ -123,7 +122,6 @@ EXCLUSIVE_GROUPS: dict[str, list] = {
         ["collision.BULLET", "collision.MULTICORE"],
     ],
     "vis-config.yaml": [],
-    "wrapper-config.yaml": [],
 }
 
 
